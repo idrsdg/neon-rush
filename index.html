@@ -433,10 +433,10 @@ function buildStatic(){
   A.spec = mk(240,150); { const g=A.spec.getContext('2d'); const gr=g.createLinearGradient(60,60,180,110); gr.addColorStop(0,'rgba(255,255,255,0)'); gr.addColorStop(0.45,'rgba(255,255,255,.55)'); gr.addColorStop(0.55,'rgba(255,255,255,.55)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; rr(g,18,64,204,36,14); g.fill(); }
   // traffic: cars, vans, trucks, bikes
   const cols=['#ff2d55','#ffd200','#c13dff','#19e05a','#ff6a00','#ff2fb0','#1a6cff','#ffffff'];
-  A.cars = cols.map(c=>{ const cv=mk(160,100); const g=cv.getContext('2d'); drawWheels(g,160,100,1); drawCarBody(g,c,'#19f0ff',160,100,false); return cv; });
-  A.vans = ['#ffd200','#19e05a','#ffffff','#ff6a00'].map(c=>{ const cv=mk(160,120); drawVan(cv.getContext('2d'),c,160,120); return cv; });
-  A.trucks = ['#ff2d55','#1a6cff','#c13dff'].map(c=>{ const cv=mk(200,160); drawTruck(cv.getContext('2d'),c,200,160); return cv; });
-  A.bikes = ['#ff2fb0','#19f0ff','#ffd200'].map(c=>{ const cv=mk(70,120); drawBike(cv.getContext('2d'),c,70,120); return cv; });
+  A.cars = cols.map(c=>{ const cv=mk(320,200); const g=cv.getContext('2d'); g.scale(2,2); drawWheels(g,160,100,1); drawCarBody(g,c,'#19f0ff',160,100,false); return cv; });
+  A.vans = ['#ffd200','#19e05a','#ffffff','#ff6a00'].map(c=>{ const cv=mk(400,300); drawVan(cv.getContext('2d'),c,400,300); return cv; });
+  A.trucks = ['#ff2d55','#1a6cff','#c13dff'].map(c=>{ const cv=mk(600,480); drawTruck(cv.getContext('2d'),c,600,480); return cv; });
+  A.bikes = ['#ff2fb0','#19f0ff','#ffd200'].map(c=>{ const cv=mk(140,240); drawBike(cv.getContext('2d'),c,140,240); return cv; });
   A.glowAmber = radial(64,64,'rgba(255,160,30,.95)','rgba(255,160,30,0)');
   // asphalt noise strip (transparent speckle) tiled on near road
   A.asph = mk(256,256); { const g=A.asph.getContext('2d'); const r=rng(31); for (let i=0;i<5200;i++){ const v=r(); g.fillStyle = v<0.5?'rgba(255,255,255,'+(0.04+r()*0.08).toFixed(3)+')':'rgba(0,0,0,'+(0.08+r()*0.16).toFixed(3)+')'; const s=1+r()*2.2; g.fillRect(r()*256,r()*256,s,s); }
@@ -967,16 +967,23 @@ function onLap(){
 }
 function updateCars(dt){
   const playerSeg=findSeg(S.pos+PLAYER_Z);
+  // keep cars from driving through each other: the one behind holds back and eases sideways until there is room
+  const GAP=SEG*1.7; for (let i=0;i<cars.length;i++) cars[i].hold=1;
+  for (let i=0;i<cars.length;i++){ const a=cars[i]; for (let j=0;j<cars.length;j++){ if (i===j) continue; const b=cars[j]; const d=((b.z-a.z)%trackLen+trackLen)%trackLen; if (d>GAP) continue;
+    if (Math.abs(a.offset-b.offset) >= (a.w+b.w)*0.5*0.95) continue;
+    if (S.mode==='countdown' || a.speed<60 || a.speed<=b.speed*0.9) continue;   // parked on the grid, or already dropping back
+    a.hold=Math.max(0.25, Math.min(a.hold, b.speed*0.9/a.speed)); a.brakeT=Math.max(a.brakeT||0,0.15);
+    const dir=a.offset>=b.offset?1:-1, o=a.offset+dir*dt*0.45; a.offset = Math.abs(o)<=0.9 ? o : a.offset-dir*dt*0.45; } }
   for (const car of cars){
     const oldSeg=findSeg(car.z);
     const st = car.rival!=null ? rivalDrive(car,oldSeg,playerSeg,dt) : carSteer(car,oldSeg,playerSeg,dt);
-    if (car.rival!=null){ car.dist+=dt*car.speed; if (car.finT==null && S.mode==='race' && car.dist>=FIN_DIST()) car.finT=S.raceTime; }
+    if (car.rival!=null){ car.dist+=dt*car.speed*car.hold; if (car.finT==null && S.mode==='race' && car.dist>=FIN_DIST()) car.finT=S.raceTime; }
     if (Math.abs(st)>0.0004){ car.ind = st>0?1:-1; car.indT=0.9; } else if (car.indT>0){ car.indT-=dt; if (car.indT<=0) car.ind=0; }
     car.brake = car.brakeT>0 ? 1 : 0; if (car.brakeT>0) car.brakeT-=dt;
     car.offset += st;
     car.offset = clamp(car.offset,-0.9,0.9);
     const oldZ=car.z;
-    car.z=increase(car.z,dt*car.speed,trackLen);
+    car.z=increase(car.z,dt*car.speed*car.hold,trackLen);
     const newSeg=findSeg(car.z);
     if (oldSeg!==newSeg){ const i=oldSeg.cars.indexOf(car); if (i>=0) oldSeg.cars.splice(i,1); newSeg.cars.push(car); }
     // overtake detection (player passes car)
