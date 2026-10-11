@@ -93,7 +93,7 @@
   a.btn{text-decoration:none;display:inline-block;}
   #pauseBtn:active{transform:translateX(-50%) scale(.9) translateY(3px);}
   #pauseBtn i{display:inline-block;width:7px;height:24px;background:#3b1d9a;border-radius:2px;margin:0 3px;box-shadow:inset 0 0 0 1px #fff;}
-  #pause{background:radial-gradient(ellipse at 50% 35%,rgba(59,29,154,.92),rgba(18,8,56,.94) 70%);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:7;}
+  #pause{background:radial-gradient(ellipse at 50% 35%,rgba(59,29,154,.92),rgba(18,8,56,.94) 70%);z-index:7;}
   #pause h1.title{font-size:clamp(48px,11vw,110px);animation:none;}
   .pbtns{display:flex;flex-direction:column;gap:16px;align-items:center;}
   .btn.big{font-size:clamp(30px,7vw,52px);padding:20px 64px;border-color:#fff;background:linear-gradient(180deg,#5dff8f 0%,#19e05a 50%,#0b8a3a 100%);box-shadow:0 0 0 4px var(--pur),0 10px 0 #06521f,0 13px 4px rgba(0,0,0,.35);text-shadow:2px 2px 0 #06521f;}
@@ -1295,7 +1295,7 @@ function syncUI(){
   if (pb.classList.contains('on')!==inGame){ pb.classList.toggle('on',inGame); hb.classList.toggle('on',inGame); }
 }
 function resize(){
-  DPR=Math.min(2,window.devicePixelRatio||1); W=window.innerWidth; H=window.innerHeight; canvas.width=Math.round(W*DPR); canvas.height=Math.round(H*DPR);
+  DPR=Arcade.gfx.dpr(window.innerWidth,window.innerHeight); W=window.innerWidth; H=window.innerHeight; canvas.width=Math.round(W*DPR); canvas.height=Math.round(H*DPR);
   const pt=pal.step>=0?pal.step/PAL_STEPS:0; buildSized(); setFonts(); setPalette(pt);
 }
 // input
@@ -1335,7 +1335,7 @@ for (const b of document.querySelectorAll('.sndBtn')) b.addEventListener('pointe
 for (const a of document.querySelectorAll('a.hub')) a.addEventListener('click',()=>{ saveGame(); });
 document.addEventListener('visibilitychange',()=>{ last=0; if (document.hidden){ if (S.mode==='race'||S.mode==='countdown'){ pauseGame(); } saveGame(); } });
 window.addEventListener('pagehide',()=>{ saveGame(); });
-window.addEventListener('resize',resize);
+window.addEventListener('resize',resize); Arcade.gfx.onChange(()=>resize());
 window.addEventListener('blur',()=>{ for (const k in input) if (k!=='accel') input[k]=false; });
 // ---- sound toggle (persisted; master gain respects it so the engine loop is silenced too)
 let soundOn=true; try{ soundOn = localStorage.getItem('neonrush_sound')!=='0'; }catch(e){}
