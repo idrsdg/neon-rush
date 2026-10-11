@@ -136,6 +136,7 @@
       <div class="card sm"><div class="k">CARS PASSED</div><div class="v" id="resPassed">0</div></div>
       <div class="card sm"><div class="k">TOP SPEED</div><div class="v" id="resTop">0</div></div>
     </div>
+    <div data-arcade-roast></div>
     <div class="row"><button class="btn" id="btnAgain">RACE AGAIN</button><a class="btn alt" data-arcade-share style="background:#000;color:#fff;border:2px solid #fff;text-decoration:none;display:inline-block;cursor:pointer">𝕏 SHARE ON X</a><a class="btn alt hub" href="../games/">&#127918; ALL GAMES</a></div>
   </div>
   <div id="pause" class="screen hidden">
@@ -1375,6 +1376,7 @@ window.__g = {
 };
 window.__arcade={showStatus:true,score:()=>S.mode==='finish'?10000000-Math.round(S.raceTime*1000):Math.round(((S.lap-1)+S.pos/trackLen)*1000),status:()=>S.mode==='finish'?'P'+S.place+' · '+fmt(S.raceTime):(S.mode==='race'||S.mode==='countdown')?'P'+S.place+' · Lap '+S.lap+'/'+LAPS+' '+Math.round(S.pos/trackLen*100)+'%':'',done:()=>S.mode==='finish',config:()=>({}),start:()=>{S.paused=false;S.resumeT=0;clearSave();for(const id of ['pause','result','start'])document.getElementById(id).classList.add('hidden');startRace();}};
 })();
+window.__roastTier = () => { const p = parseInt(((document.getElementById("resPos")||{}).textContent||"").replace(/^P/, ""), 10); return !p ? null : p === 1 ? 2 : p <= 3 ? 1 : 0; };
 window.__shareText = () => "Neon Rush 🏁 Finished " + ((document.getElementById("resPos")||{}).textContent||"").replace(/\s/g,"") + ", race time " + ((document.getElementById("resTime")||{}).textContent||"") + ", best lap " + ((document.getElementById("resLap")||{}).textContent||"") + ", top speed " + ((document.getElementById("resTop")||{}).textContent||"") + ". Beat my time?";
 </script>
 </body>
