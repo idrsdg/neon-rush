@@ -81,6 +81,7 @@
     <div class="pbtns">
       <button class="btn big" id="btnContinue" style="display:none">CONTINUE</button>
       <button class="btn" id="btnStart">START RACE</button>
+      <button class="btn alt" type="button" data-arcade-room>&#128101; PLAY WITH FRIENDS</button>
       <button class="ico sndBtn" aria-label="Sound">&#128266;</button>
     </div>
     <div class="ctl"><span><span class="key">&larr; &rarr;</span> / <span class="key">A D</span> steer</span><span><span class="key">N</span> / <span class="key">SHIFT</span> nitro</span><span><span class="key">SPACE</span> / <span class="key">&darr;</span> brake</span></div>
@@ -1130,6 +1131,7 @@ window.__g = {
   resetFrames: ()=>{ fcount=0; fi=0; },
   mute: ()=>{ if (master) master.gain.value=0; },
 };
+window.__arcade={showStatus:true,score:()=>S.mode==='finish'?10000000-Math.round(S.raceTime*1000):Math.round(((S.lap-1)+S.pos/trackLen)*1000),status:()=>S.mode==='finish'?fmt(S.raceTime):(S.mode==='race'||S.mode==='countdown')?'Lap '+S.lap+'/'+LAPS+' '+Math.round(S.pos/trackLen*100)+'%':'',done:()=>S.mode==='finish',config:()=>({}),start:()=>{S.paused=false;S.resumeT=0;clearSave();for(const id of ['pause','result','start'])document.getElementById(id).classList.add('hidden');startRace();}};
 })();
 window.__shareText = () => "Neon Rush 🏁 Race time " + ((document.getElementById("resTime")||{}).textContent||"") + ", best lap " + ((document.getElementById("resLap")||{}).textContent||"") + ", top speed " + ((document.getElementById("resTop")||{}).textContent||"") + ". Beat my time?";
 </script>
