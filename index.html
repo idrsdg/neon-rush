@@ -97,7 +97,7 @@
       <div class="card" style="min-width:160px"><div class="k">CARS PASSED</div><div class="v" id="resPassed">0</div></div>
       <div class="card" style="min-width:160px"><div class="k">TOP SPEED</div><div class="v" id="resTop">0</div></div>
     </div>
-    <div class="row"><button class="btn" id="btnAgain">RACE AGAIN</button><a class="btn alt hub" href="../games/">&#127918; ALL GAMES</a></div>
+    <div class="row"><button class="btn" id="btnAgain">RACE AGAIN</button><a class="btn alt" data-arcade-share style="background:#000;color:#fff;border:2px solid #fff;text-decoration:none;display:inline-block;cursor:pointer">𝕏 SHARE ON X</a><a class="btn alt hub" href="../games/">&#127918; ALL GAMES</a></div>
   </div>
   <div id="pause" class="screen hidden">
     <h1 class="title">PAUSED</h1>
@@ -106,6 +106,7 @@
       <button class="btn big" id="btnResume">RESUME</button>
       <div class="row"><button class="btn alt" id="btnRestart">RESTART</button><button class="btn alt menu" id="btnMenu">MENU</button></div>
       <div class="row"><a class="btn alt hub" href="../games/">&#127918; ALL GAMES</a><button class="ico sndBtn" aria-label="Sound">&#128266;</button></div>
+      <div data-arcade-vol></div>
     </div>
     <div class="hint">P / ESC TO RESUME &middot; PROGRESS IS SAVED</div>
   </div>
@@ -114,6 +115,7 @@
     <div class="tgroup"><div class="tbtn b" data-k="brake">BRAKE</div><div class="tbtn n" data-k="nitro">NITRO</div></div>
   </div>
 </div>
+<script src="../games/arcade.js"></script>
 <script>
 (() => {
 'use strict';
@@ -142,8 +144,8 @@ const SEG=200, ROADW=2000, LANES=3, CAM_H=1000, FOV=100, DRAW=200;
 const CAM_D = 1/Math.tan((FOV/2)*Math.PI/180);
 const PLAYER_Z = CAM_H*CAM_D;
 const MAX_SPEED = SEG*60, NITRO_MAX = MAX_SPEED*1.42;
-const ACCEL = MAX_SPEED/3.6, BRAKE = -MAX_SPEED*1.3, DECEL=-MAX_SPEED/5, OFF_DECEL=-MAX_SPEED*0.9, OFF_LIMIT=MAX_SPEED/3.5;
-const CENTRIFUGAL = 0.3, LAPS = 3, PLAYER_W = 0.3;
+const ACCEL = MAX_SPEED/3.6, BRAKE = -MAX_SPEED*1.3, DECEL=-MAX_SPEED/5, OFF_DECEL=-MAX_SPEED*0.6, OFF_LIMIT=MAX_SPEED/2.4;
+const CENTRIFUGAL = 0.125, LAPS = 3, PLAYER_W = 0.3;
 const SAVE_KEY='neonrush_save_v2';
 // per-lap difficulty table (explicit ramp): traffic density, traffic speed, lane-change aggression, curve sharpening, extra crests, grip
 const DIFF = [
@@ -660,18 +662,24 @@ function update(dt){
   const steerIn = racing ? ((input.left?-1:0)+(input.right?1:0)) : 0;
   spring(S.steer, steerIn, 60, 11, dt);
   const offroadNow = Math.abs(S.playerX)>1;
-  const grip = diff().grip*(offroadNow?0.55:1);
-  // lateral demand vs grip: hard steering at speed (or against a strong curve) breaks traction
-  const demand = Math.abs(S.steer.x)*clamp((sf-0.42)/0.5,0,1.3)*1.25 + Math.abs(playerSeg.curve)*sf*0.055*(Math.sign(playerSeg.curve)===-Math.sign(S.steer.x)?1.4:0.6);
-  if (racing && demand>grip*0.95){ if (S.drift<=0.01){ S.slipDir = S.steer.x>0?1:-1; } S.drift = Math.min(1, S.drift + (demand-grip*0.95)*gdt*4.5); }
-  else { const counter = (S.slipDir!==0 && Math.sign(S.steer.x)===-S.slipDir && Math.abs(S.steer.x)>0.3)?2.2:1; S.drift = Math.max(0, S.drift - gdt*2.2*counter); if (S.drift<=0) S.slipDir=0; }
-  const dx = gdt*2.2*clamp(sf,0,1.3);
+  const grip = diff().grip*(offroadNow?0.75:1);
+  // lateral demand vs grip: traction only breaks when cornering hard INTO a real curve at very high speed (or on nitro)
+  const steerA = Math.abs(S.steer.x), curveN = Math.abs(playerSeg.curve)/6, into = playerSeg.curve!==0 && Math.sign(playerSeg.curve)===Math.sign(S.steer.x);
+  const demand = steerA*clamp((sf-0.55)/0.6,0,1.25)*0.75 + (into?curveN*sf*0.4:0);
+  if (racing && demand>grip*0.95){ if (S.drift<=0.01){ S.slipDir = S.steer.x>0?1:-1; } S.drift = Math.min(1, S.drift + (demand-grip*0.95)*gdt*3.2); }
+  else { const counter = (S.slipDir!==0 && Math.sign(S.steer.x)===-S.slipDir && steerA>0.3)?2.4:1; S.drift = Math.max(0, S.drift - gdt*2.6*counter); if (S.drift<=0) S.slipDir=0; }
   if (racing){
-    const authority = (1-S.drift*0.55)*(offroadNow?0.7:1);
-    S.playerX += dx*S.steer.x*1.1*authority;
-    S.playerX -= dx*sf*playerSeg.curve*CENTRIFUGAL*(1+S.drift*0.9);
-    S.playerX -= dx*S.drift*S.slipDir*0.55; // rear slides outward -> car pushed opposite to steering input
-  }
+    // lateral velocity in road half-widths per second: steering, centrifugal push and slide, then smoothed for weight
+    const sfc = clamp(sf,0,1.15), ax = Math.abs(S.playerX);
+    const authority = (1-S.drift*0.3)*(offroadNow?0.9:1);
+    let vSteer = 1.45*sfc*S.steer.x*authority;
+    let vCent = -1.45*sfc*sf*playerSeg.curve*CENTRIFUGAL*(1+S.drift*0.35);
+    // near the road edge the tyres bite: the outward push fades so a small correction keeps the car on the tarmac
+    if (ax>0.7 && Math.sign(vCent)===Math.sign(S.playerX)){ const k=clamp((ax-0.7)/0.3,0,1); vCent *= 1-0.5*k*k*(3-2*k); }
+    const vSlide = -1.45*sfc*S.drift*S.slipDir*0.2;
+    S.vx = lerp(S.vx||0, vSteer+vCent+vSlide, 1-Math.exp(-gdt*9));
+    S.playerX += S.vx*gdt;
+  } else S.vx = 0;
   if (finished){ S.playerX = lerp(S.playerX, 0, 1-Math.exp(-gdt*2)); }
   S.driftVis = lerp(S.driftVis, S.drift, 1-Math.exp(-dt*10));
   // --- gears / rpm
@@ -700,7 +708,7 @@ function update(dt){
     if (S.speed>maxS) accel = Math.min(accel, DECEL*2.2);
     S.speed = clamp(S.speed + accel*gdt, 0, NITRO_MAX);
     const off = Math.abs(S.playerX)>1;
-    if (off && S.speed>OFF_LIMIT*0.85) S.speed += OFF_DECEL*1.35*gdt;
+    if (off && S.speed>OFF_LIMIT) S.speed += OFF_DECEL*clamp((Math.abs(S.playerX)-1)/0.25,0.35,1)*gdt;
   } else if (finished){ S.speed = Math.max(0, S.speed + DECEL*0.8*gdt); }
   S.brakeVis = lerp(S.brakeVis, (racing && input.brake && S.speed>30)?1:0, 1-Math.exp(-dt*18));
   S.topSpeed=Math.max(S.topSpeed,S.speed);
@@ -1111,6 +1119,7 @@ window.__g = {
   setSpeed: (v)=>{ S.speed=v; },
   setPalette: (t)=>{ if (setPalette(t)) buildPaletteSized(); },
   crash: ()=>doCrash(0.8),
+  _dbg: ()=>({S, segments, findSeg, MAX_SPEED, PLAYER_Z}),
   pause: ()=>pauseGame(), resume: ()=>resumeGame(), paused: ()=>S.paused, resumeT: ()=>S.resumeT,
   saveNow: ()=>{ saveGame(); return hasSave(); }, loadSaved: ()=>loadSaved(), hasSave: ()=>hasSave(), clearSave: ()=>clearSave(),
   setSound: (v)=>setSound(v), sound: ()=>soundOn, diff: ()=>diff(), setDrift: (d,dir)=>{ S.drift=d; S.slipDir=dir||1; },
@@ -1122,6 +1131,7 @@ window.__g = {
   mute: ()=>{ if (master) master.gain.value=0; },
 };
 })();
+window.__shareText = () => "Neon Rush 🏁 Race time " + ((document.getElementById("resTime")||{}).textContent||"") + ", best lap " + ((document.getElementById("resLap")||{}).textContent||"") + ", top speed " + ((document.getElementById("resTop")||{}).textContent||"") + ". Beat my time?";
 </script>
 </body>
 </html>
