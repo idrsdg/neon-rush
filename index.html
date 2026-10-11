@@ -849,7 +849,7 @@ function render(){
   const red = clamp((S.rpmVis-0.9)/0.1,0,1)*(S.mode==='race'?1:0); // engine vibration at redline
   const sx = (shk?Math.sin(S.time*71)*shk:0) + Math.sin(S.time*140)*red*1.3, sy = (shk?Math.cos(S.time*53)*shk*0.8:0) + Math.cos(S.time*123)*red*1.1 - S.susp.x*0.35;
   ctx.save();
-  ctx.translate(w/2+sx+S.camX.x*w, h/2+sy); ctx.rotate(S.lean.x); const zm=S.zoom.x*(1+Math.abs(S.lean.x)*2.2+Math.abs(S.camX.x)*1.2+S.shake*0.05)+0.015; ctx.scale(zm,zm); ctx.translate(-w/2,-h/2);
+  ctx.translate(w/2+sx, h/2+sy); /* no world rotation or sideways camera shift: they made the picture shear in curves */ const zm=S.zoom.x*(1+S.shake*0.05)+0.015; ctx.scale(zm,zm); ctx.translate(-w/2,-h/2);
   // --- background
   ctx.drawImage(A.sky,0,0,16,256,0,0,w,h);
   if (pal.stars>0.01){ ctx.globalAlpha=pal.stars; ctx.drawImage(A.stars,0,0); ctx.globalAlpha=1; }
@@ -902,7 +902,7 @@ function render(){
   ctx.restore();
   // --- post fx (not shaken)
   // edge motion blur above 85% speed: copy frame, draw two radially stretched copies, keep the centre crisp
-  if (S.blurK>0.02){ const g=A.blur.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.drawImage(canvas,0,0,A.blur.width,A.blur.height);
+  if (false && S.blurK>0.02){ /* canvas-copy motion blur removed: it doubled roadside sprites */ const g=A.blur.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.drawImage(canvas,0,0,A.blur.width,A.blur.height);
     const k=S.blurK; const cx=w/2, cy=h*0.5; ctx.globalAlpha=0.28*k; for (const s of [1.025,1.055]){ ctx.drawImage(A.blur, cx-cx*s, cy-cy*s, w*s, h*s); }
     ctx.globalAlpha=1; ctx.save(); ctx.beginPath(); ctx.ellipse(cx,cy,w*(0.34-0.06*k),h*(0.34-0.05*k),0,0,6.283); ctx.clip(); ctx.drawImage(A.blur,0,0,w,h); ctx.restore(); }
   if (sf>0.55||S.nitroOn) drawSpeedLines(w,h,sf);
