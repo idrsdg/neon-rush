@@ -102,6 +102,58 @@
   .btn.alt:active{box-shadow:0 0 0 4px var(--pur),0 3px 0 #0a2a8a;}
   .btn.menu{background:linear-gradient(180deg,#ff2fb0 0%,#c13dff 100%);box-shadow:0 0 0 4px var(--pur),0 8px 0 #5a0f6e;text-shadow:2px 2px 0 #5a0f6e;}
   .btn.menu:active{box-shadow:0 0 0 4px var(--pur),0 3px 0 #5a0f6e;}
+
+  #start,#career,#garage,#story{justify-content:safe center;overflow-y:auto;touch-action:pan-y;}
+  #start{gap:10px;}
+  .inp{pointer-events:auto;font:inherit;font-size:clamp(13px,3vw,16px);letter-spacing:.12em;color:#fff;background:#120838;border:3px solid #6a4ad8;border-radius:12px;padding:7px 10px;width:150px;text-align:center;text-transform:uppercase;outline:none;}
+  .inp:focus{border-color:#ffd200;}
+  .inp.plate{width:110px;background:#ffd200;color:#120838;border-color:#fff;font-weight:400;}
+  .mini{font-size:clamp(11px,2.6vw,14px);letter-spacing:.14em;color:#fff;opacity:.95;}
+  .mini b{color:var(--yel);font-weight:400;}
+  .quests{display:flex;flex-direction:column;gap:5px;min-width:min(86vw,420px);padding:8px 14px;}
+  .quests .qh{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.18em;color:var(--cyan);}
+  .quests .q{display:flex;align-items:center;gap:8px;font-size:clamp(11px,2.6vw,14px);letter-spacing:.08em;color:#fff;}
+  .quests .q .tx{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .quests .q .bar{width:90px;height:8px;background:#120838;border-radius:4px;overflow:hidden;border:1px solid #071a3a;}
+  .quests .q .bar u{display:block;height:100%;background:var(--cyan);}
+  .quests .q.done{color:var(--grn);}
+  .quests .q.done .bar u{background:var(--grn);}
+  .carBtn.lock{filter:grayscale(.7) brightness(.75);}
+  .carBtn .pr{font-size:10px;color:var(--yel);letter-spacing:.1em;}
+  #podium{display:flex;align-items:flex-end;justify-content:center;gap:6px;height:112px;}
+  #podium .pc{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;width:88px;animation:rise .6s cubic-bezier(.22,1,.36,1) backwards;}
+  #podium .pc .nm{font-size:12px;letter-spacing:.08em;color:#fff;margin-bottom:4px;white-space:nowrap;max-width:88px;overflow:hidden;text-overflow:ellipsis;}
+  #podium .pc .bx{width:100%;border-radius:8px 8px 0 0;border:3px solid #fff;border-bottom:0;display:flex;align-items:flex-start;justify-content:center;font-size:22px;color:#120838;padding-top:4px;}
+  .story{max-width:min(90vw,520px);font-family:"Helvetica Neue",Arial,sans-serif;font-size:clamp(13px,3vw,16px);line-height:1.45;letter-spacing:.02em;color:#fff;text-align:left;}
+  .story h3{font-family:Impact,"Arial Black",sans-serif;font-weight:400;font-size:clamp(20px,4vw,28px);letter-spacing:.08em;color:var(--yel);margin-bottom:6px;}
+  .tourMap{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;max-width:min(94vw,600px);row-gap:8px;}
+  .stop{pointer-events:auto;cursor:pointer;font:inherit;color:#fff;background:linear-gradient(180deg,#1e0d5e,#3b1d9a);border:3px solid #6a4ad8;border-radius:14px;padding:8px 8px;min-width:94px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;letter-spacing:.08em;}
+  .stop .ic{font-size:22px;font-family:system-ui,sans-serif;}
+  .stop small{font-size:9px;color:var(--cyan);letter-spacing:.1em;}
+  .stop.done{border-color:var(--grn);} .stop.next{border-color:var(--yel);background:linear-gradient(180deg,#4a22b8,#8a2ad0);} .stop.lock{opacity:.5;cursor:default;}
+  .link{width:20px;height:4px;background:#6a4ad8;border-radius:2px;}
+  .link.on{background:var(--grn);}
+  .cupRow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+  .cup{pointer-events:auto;cursor:pointer;font:inherit;color:#fff;background:linear-gradient(180deg,#1e0d5e,#3b1d9a);border:3px solid #6a4ad8;border-radius:16px;padding:10px 14px;min-width:150px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;letter-spacing:.08em;}
+  .cup .ic{font-size:28px;font-family:system-ui,sans-serif;} .cup.lock{opacity:.5;cursor:default;} .cup small{font-size:10px;color:var(--cyan);letter-spacing:.1em;} .cup.done{border-color:var(--grn);} .cup.run{border-color:var(--yel);}
+  .garage{display:flex;flex-direction:column;gap:8px;min-width:min(86vw,420px);padding:10px 16px;}
+  .garage .up{display:flex;align-items:center;gap:8px;font-size:clamp(12px,2.8vw,15px);letter-spacing:.08em;color:#fff;}
+  .garage .up .k{width:64px;text-align:left;color:var(--cyan);}
+  .garage .pips{display:flex;gap:4px;flex:1;} .garage .pips i{width:18px;height:10px;border-radius:3px;background:#120838;border:1px solid #6a4ad8;} .garage .pips i.on{background:var(--yel);}
+  .buy{pointer-events:auto;cursor:pointer;font:inherit;font-size:12px;letter-spacing:.08em;color:#120838;background:var(--yel);border:2px solid #fff;border-radius:999px;padding:4px 10px;} .buy:disabled{opacity:.45;cursor:default;}
+  .sw{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;align-items:center;} .sw button{pointer-events:auto;cursor:pointer;width:34px;height:34px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 0 #120838;position:relative;} .sw button.sel{outline:3px solid var(--yel);} .sw button.lock{opacity:.4;}
+  .sw button.lock::after{content:attr(data-cost);position:absolute;left:50%;top:100%;transform:translateX(-50%);font-size:9px;color:#fff;letter-spacing:.05em;}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:min(94vw,560px);}
+  .bd{display:flex;flex-direction:column;align-items:center;gap:2px;width:66px;font-size:9px;letter-spacing:.06em;color:#fff;opacity:.35;} .bd.on{opacity:1;} .bd .ic{width:40px;height:40px;border-radius:50%;background:linear-gradient(180deg,#ffd200,#ff6a00);border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-family:system-ui,sans-serif;}
+  body.photo #pauseBtn,body.photo #hudBar,body.photo #touch,body.photo #more{display:none!important;}
+  #photoHint{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:8;display:none;font-size:14px;letter-spacing:.2em;color:#fff;background:rgba(18,8,56,.7);border:2px solid #fff;border-radius:999px;padding:8px 18px;pointer-events:none;}
+  body.photo #photoHint{display:block;}
+  #dailyTop{display:flex;flex-direction:column;gap:3px;font-size:12px;letter-spacing:.08em;color:#fff;}
+  #dailyTop:empty{display:none;}
+  .tbtn.w{background:radial-gradient(circle at 35% 30%,#c8e4ff,#8fd4ff 40%,#3b6cff 100%);font-size:26px;width:60px;height:60px;}
+  .hl{font-size:clamp(13px,3vw,18px);letter-spacing:.12em;color:var(--yel);text-shadow:2px 2px 0 #7a1a00;}
+  .hl.g{color:var(--grn);text-shadow:2px 2px 0 #06521f;}
+  .screen h1.title.s{font-size:clamp(34px,min(8vw,8vh),72px);animation:none;}
 </style>
 </head>
 <body>
@@ -109,42 +161,87 @@
 <a id="more" href="../games/" style="position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:5;display:none;font:900 15px ui-rounded,system-ui,sans-serif;color:#fff;text-decoration:none;background:linear-gradient(#7a55ff,#5a3ad8);border:2px solid #fff;border-radius:999px;padding:9px 16px;box-shadow:0 4px 0 #2a1a7a">🎮 More games</a>
 <button id="pauseBtn" aria-label="Pause"><i></i><i></i></button>
 <div id="hudBar"><button id="homeBtn" class="ico" aria-label="All games">&#8962;</button><button class="ico sndBtn" aria-label="Sound">&#128266;</button></div>
+<div id="photoHint">PHOTO SAVED &middot; TAP TO RETURN</div>
 <div id="ui">
   <div id="start" class="screen">
     <h1 class="title">NEON RUSH</h1>
-    <div class="sub">3 LAPS &middot; 5 RIVALS &middot; DAY TO NIGHT</div>
-    <div class="card best"><div class="k">BEST RACE TIME</div><div class="v" id="startBest">--:--.--</div></div>
+    <div class="sub" id="subLine">3 LAPS &middot; 5 RIVALS &middot; DAY TO NIGHT</div>
+    <div class="row">
+      <div class="card best"><div class="k">BEST RACE TIME</div><div class="v" id="startBest">--:--.--</div></div>
+      <div class="card best"><div class="k">COINS</div><div class="v" id="coinsV">0</div></div>
+    </div>
+    <div class="seg"><span class="lbl">DRIVER</span><input class="inp" id="nameInp" maxlength="12" placeholder="YOUR NAME" autocomplete="off" spellcheck="false"><input class="inp plate" id="plateInp" maxlength="7" placeholder="PLATE" autocomplete="off" spellcheck="false"></div>
+    <div class="mini" id="rivalLine"></div>
     <div class="cars" id="carPick"></div>
+    <div class="seg" id="modePick"><span class="lbl">MODE</span><button class="segB" data-mode="race">RACE</button><button class="segB" data-mode="time">TIME ATTACK</button><button class="segB" data-mode="mission">MISSION</button><button class="segB" data-mode="daily">TRACK OF THE DAY</button></div>
+    <div class="seg" id="themePick"><span class="lbl">TRACK</span><button class="segB" data-theme="city">NEON CITY</button><button class="segB" data-theme="desert">DUNE RUN</button><button class="segB" data-theme="coast">COASTLINE</button><button class="segB" data-theme="mountain">SUMMIT</button></div>
+    <div class="seg" id="diffPick"><span class="lbl">LEVEL</span><button class="segB" data-diff="easy">EASY</button><button class="segB" data-diff="normal">NORMAL</button><button class="segB" data-diff="hard">HARD</button></div>
     <div class="seg" id="wxPick"><span class="lbl">WEATHER</span><button class="segB" data-wx="clear">CLEAR</button><button class="segB" data-wx="auto">CHANGING</button><button class="segB" data-wx="rain">RAIN</button><button class="ico sndBtn" aria-label="Sound">&#128266;</button></div>
     <div class="pbtns">
       <div class="row"><button class="btn big" id="btnContinue" style="display:none">CONTINUE</button><button class="btn" id="btnStart">START RACE</button></div>
-      <button class="btn alt" type="button" data-arcade-room>&#128101; PLAY WITH FRIENDS</button>
+      <div class="row"><button class="btn alt" id="btnCareer" type="button">&#127942; TOUR &amp; CUPS</button><button class="btn alt" id="btnGarage" type="button">&#128295; GARAGE</button><button class="btn alt" type="button" data-arcade-room>&#128101; PLAY WITH FRIENDS</button></div>
     </div>
-    <div class="ctl"><span><span class="key">&larr; &rarr;</span> / <span class="key">A D</span> steer</span><span><span class="key">N</span> / <span class="key">SHIFT</span> nitro</span><span><span class="key">SPACE</span> / <span class="key">&darr;</span> brake</span></div>
+    <div class="card quests" id="questBox"></div>
+    <div data-arcade-daily="race"></div>
+    <div class="card quests" id="dailyTop"></div>
+    <div data-arcade-a11y></div>
+    <div class="ctl"><span><span class="key">&larr; &rarr;</span> / <span class="key">A D</span> steer</span><span><span class="key">N</span> / <span class="key">SHIFT</span> nitro</span><span><span class="key">SPACE</span> / <span class="key">&darr;</span> brake</span><span><span class="key">R</span> rewind</span></div>
     <div class="hint">TOUCH: TAP LEFT / RIGHT SIDE TO STEER &middot; DOUBLE-TAP FOR NITRO</div>
+  </div>
+  <div id="career" class="screen hidden">
+    <h1 class="title s">WORLD TOUR</h1>
+    <div class="tourMap" id="tourMap"></div>
+    <div class="hl" id="tourLine"></div>
+    <h1 class="title s" style="margin-top:6px">CUPS</h1>
+    <div class="cupRow" id="cupRow"></div>
+    <div class="hl" id="cupLine"></div>
+    <h1 class="title s" style="margin-top:6px">BADGES</h1>
+    <div class="badges" id="badgeBox"></div>
+    <div class="row"><button class="btn alt menu" id="btnCareerBack" type="button">BACK</button></div>
+  </div>
+  <div id="garage" class="screen hidden">
+    <h1 class="title s">GARAGE</h1>
+    <div class="mini" id="garageCoins"></div>
+    <div class="cars" id="garagePick"></div>
+    <div class="card garage" id="upBox"></div>
+    <div class="lbl">ACCENT COLOUR</div>
+    <div class="sw" id="accentRow"></div>
+    <div class="lbl">NEON UNDERGLOW</div>
+    <div class="row" id="glowRow"></div>
+    <div class="row"><button class="btn alt menu" id="btnGarageBack" type="button">BACK</button></div>
+  </div>
+  <div id="story" class="screen hidden">
+    <h1 class="title s" id="storyTitle">NEON CITY</h1>
+    <div class="card story" id="storyCard"></div>
+    <div class="row"><button class="btn" id="btnStoryGo" type="button">START</button><button class="btn alt menu" id="btnStoryBack" type="button">BACK</button></div>
   </div>
   <div id="result" class="screen hidden">
     <h1 class="title" id="resTitle" style="font-size:clamp(40px,min(10vw,9vh),96px);animation:none">FINISH!</h1>
     <div id="recordBadge" class="badge" style="display:none">NEW RECORD</div>
+    <div id="podium"></div>
     <div class="row">
       <div class="card sm"><div class="k">POSITION</div><div class="v" id="resPos">-</div></div>
       <div class="card sm"><div class="k">RACE TIME</div><div class="v" id="resTime">0:00.00</div></div>
       <div class="card sm"><div class="k">BEST LAP</div><div class="v" id="resLap">0:00.00</div></div>
     </div>
+    <div class="hl" id="resCareer" style="display:none"></div>
     <div class="card stand" id="standings"></div>
+    <div class="card stand" id="cupStand" style="display:none"></div>
     <div class="row">
       <div class="card sm"><div class="k">CARS PASSED</div><div class="v" id="resPassed">0</div></div>
       <div class="card sm"><div class="k">TOP SPEED</div><div class="v" id="resTop">0</div></div>
+      <div class="card sm"><div class="k">COINS EARNED</div><div class="v" id="resCoins">0</div></div>
     </div>
+    <div class="hl g" id="resBadges" style="display:none"></div>
     <div data-arcade-roast></div>
-    <div class="row"><button class="btn" id="btnAgain">RACE AGAIN</button><a class="btn alt" data-arcade-share style="background:#000;color:#fff;border:2px solid #fff;text-decoration:none;display:inline-block;cursor:pointer">𝕏 SHARE ON X</a><a class="btn alt hub" href="../games/">&#127918; ALL GAMES</a></div>
+    <div class="row"><button class="btn big" id="btnNext" style="display:none">NEXT RACE</button><button class="btn" id="btnAgain">RACE AGAIN</button><button class="btn alt" id="btnCard" data-arcade-card type="button">&#128247; SHARE CARD</button><a class="btn alt" data-arcade-share style="background:#000;color:#fff;border:2px solid #fff;text-decoration:none;display:inline-block;cursor:pointer">𝕏 SHARE ON X</a><button class="btn alt menu" id="btnResMenu" type="button">MENU</button><a class="btn alt hub" href="../games/">&#127918; ALL GAMES</a></div>
   </div>
   <div id="pause" class="screen hidden">
     <h1 class="title">PAUSED</h1>
     <div class="sub" id="pauseInfo">LAP 1 / 3</div>
     <div class="pbtns">
       <button class="btn big" id="btnResume">RESUME</button>
-      <div class="row"><button class="btn alt" id="btnRestart">RESTART</button><button class="btn alt menu" id="btnMenu">MENU</button></div>
+      <div class="row"><button class="btn alt" id="btnRestart">RESTART</button><button class="btn alt menu" id="btnMenu">MENU</button><button class="btn alt" id="btnPhoto" type="button">&#128247; PHOTO MODE</button></div>
       <div class="row"><a class="btn alt hub" href="../games/">&#127918; ALL GAMES</a><button class="ico sndBtn" aria-label="Sound">&#128266;</button></div>
       <div data-arcade-vol></div>
     </div>
@@ -152,7 +249,7 @@
   </div>
   <div id="touch">
     <div class="tgroup"><div class="tbtn l" data-k="left">&#9664;</div><div class="tbtn r" data-k="right">&#9654;</div></div>
-    <div class="tgroup"><div class="tbtn b" data-k="brake">BRAKE</div><div class="tbtn n" data-k="nitro">NITRO</div></div>
+    <div class="tgroup"><div class="tbtn w" data-k="rewind">&#8634;</div><div class="tbtn b" data-k="brake">BRAKE</div><div class="tbtn n" data-k="nitro">NITRO</div></div>
   </div>
 </div>
 <script src="../games/arcade.js"></script>
@@ -193,7 +290,7 @@ const DIFF = [
   { lap:2, traffic:44, speedMin:0.55, speedMax:0.80, aggro:1.6, curveK:1.12, crests:3,   grip:0.94, label:'PRESSURE' },
   { lap:3, traffic:54, speedMin:0.62, speedMax:0.88, aggro:2.3, curveK:1.25, crests:6,   grip:0.88, label:'FULL ATTACK' },
 ];
-function diff(){ return DIFF[clamp(S.lap,1,LAPS)-1]; }
+function diff(){ return (S.diffAdj||DIFF)[clamp(S.lap,1,LAPS)-1]; }
 const GEARS=[0.14,0.28,0.45,0.64,1.0]; // top of each gear as fraction of MAX_SPEED
 // selectable cars: top speed / acceleration / grip multipliers
 const CARS=[
@@ -203,14 +300,108 @@ const CARS=[
 ];
 // AI rivals (fastest first; they start on the grid ahead of the player)
 const RIVALS=[
-  {name:'VEGA',  col:'#ff2d55', acc:'#ffffff', style:2, skill:0.90, plate:'VEGA'},
-  {name:'BLAZE', col:'#ffd200', acc:'#ff2d55', style:0, skill:0.888, plate:'BLAZE'},
-  {name:'NOVA',  col:'#c13dff', acc:'#19f0ff', style:1, skill:0.862, plate:'NOVA'},
-  {name:'DASH',  col:'#f4f4ff', acc:'#1a6cff', style:0, skill:0.845, plate:'DASH'},
-  {name:'REX',   col:'#1a6cff', acc:'#ffd200', style:2, skill:0.825, plate:'REX'},
+  {name:'VEGA',  col:'#ff2d55', acc:'#ffffff', style:2, skill:0.90,  plate:'VEGA',  ai:{aggro:0.25, rain:1.00, straight:1.00, corner:1.03, consist:0.012}, taunt:{pass:'Clean lines win races.', passed:'Nice try, rookie.', hit:'Mind the paint!', last:'One more lap. Keep up.'}},
+  {name:'BLAZE', col:'#ffd200', acc:'#ff2d55', style:0, skill:0.888, plate:'BLAZE', ai:{aggro:1.00, rain:0.97, straight:1.00, corner:1.00, consist:0.04},  taunt:{pass:'You will not stay there!', passed:'Door is closed!', hit:'Rubbing is racing.', last:'Last lap. Nowhere to hide.'}},
+  {name:'NOVA',  col:'#c13dff', acc:'#19f0ff', style:1, skill:0.862, plate:'NOVA',  ai:{aggro:0.40, rain:1.12, straight:0.98, corner:1.02, consist:0.025}, taunt:{pass:'Wait for the rain.', passed:'Slippery when fast.', hit:'Careful, it is wet.', last:'Final lap. Feel the storm.'}},
+  {name:'DASH',  col:'#f4f4ff', acc:'#1a6cff', style:0, skill:0.845, plate:'DASH',  ai:{aggro:0.30, rain:0.95, straight:1.09, corner:0.91, consist:0.05},  taunt:{pass:'See you on the straight.', passed:'Rocket mode!', hit:'Hey! My bumper!', last:'Last lap. Full send.'}},
+  {name:'REX',   col:'#1a6cff', acc:'#ffd200', style:2, skill:0.825, plate:'REX',   ai:{aggro:0.10, rain:1.00, straight:1.00, corner:1.00, consist:0.0},   taunt:{pass:'Steady does it.', passed:'Slow and sure.', hit:'Easy there.', last:'Last one. Stay smooth.'}},
 ];
+// ============================================================ difficulty / modes / themes / career data
+const DIFFS={ easy:{skill:0.94, band:1.0, aggro:0.6, traffic:0.8, label:'EASY'}, normal:{skill:1.0, band:0.8, aggro:1.0, traffic:1.0, label:'NORMAL'}, hard:{skill:1.035, band:0.5, aggro:1.4, traffic:1.15, label:'HARD'} };
+const MODES={ race:{name:'RACE'}, time:{name:'TIME ATTACK'}, mission:{name:'MISSION'}, daily:{name:'TRACK OF THE DAY'}, tour:{name:'WORLD TOUR'}, cup:{name:'CUP'} };
+const THEME_IDS=['city','desert','coast','mountain'];
+const THEMES={
+  city:    {name:'NEON CITY', seed:1,    recipe:'city'},
+  desert:  {name:'DUNE RUN',  seed:7001, recipe:'desert',
+    pal:[{skyTop:'#1a5cff',skyMid:'#4fc3ff',skyHor:'#ffe9a0',grassA:'#e2b56a',grassB:'#d2a258',roadA:'#3a3040',roadB:'#423848',mtnFar:'#c87a4a',mtnNear:'#b08050',city:'#b3683a',fog:'#f0c890',sun:'#fff6c0'},
+         {skyTop:'#4a1d9a',skyMid:'#ff5a7a',skyHor:'#ffb347',grassA:'#c99a55',grassB:'#b88a48',roadA:'#342a3c',roadB:'#3c3044',mtnFar:'#a04a4a',mtnNear:'#8a5a40',city:'#7a3a3a',fog:'#ff9a5a',sun:'#ffb060'},
+         {skyTop:'#06031c',skyMid:'#1c0d4a',skyHor:'#5a2a7a',grassA:'#5a4a3a',grassB:'#4a3c30',roadA:'#1e1c30',roadB:'#262236',mtnFar:'#3a1e4a',mtnNear:'#32222a',city:'#2a1a2e',fog:'#3a1e4a',sun:'#e8f4ff'}]},
+  coast:   {name:'COASTLINE', seed:7002, recipe:'coast',
+    pal:[{skyTop:'#1a7cff',skyMid:'#5ad8ff',skyHor:'#f4ffe0',grassA:'#f0dc9a',grassB:'#e4ce88',roadA:'#2c3048',roadB:'#343856',mtnFar:'#1a9ad8',mtnNear:'#2ab0d8',city:'#0a5aa8',fog:'#9ae8ff',sun:'#fffbd0'},
+         {skyTop:'#3b1d9a',skyMid:'#ff5aa0',skyHor:'#ffb060',grassA:'#dcc080',grassB:'#ccb070',roadA:'#2a2648',roadB:'#332c58',mtnFar:'#8a3a9a',mtnNear:'#6a3aa0',city:'#5a2a90',fog:'#ff8a6a',sun:'#ff9a1a'},
+         {skyTop:'#04021a',skyMid:'#0d1a55',skyHor:'#3a4aa8',grassA:'#6a6050',grassB:'#5a5040',roadA:'#1c1e34',roadB:'#242640',mtnFar:'#102a60',mtnNear:'#142a58',city:'#0a1848',fog:'#20306a',sun:'#e8f4ff'}]},
+  mountain:{name:'SUMMIT',    seed:7003, recipe:'mountain',
+    pal:[{skyTop:'#2a6cff',skyMid:'#7ad0ff',skyHor:'#e8f8ff',grassA:'#3a9a4a',grassB:'#2e8a3e',roadA:'#2e2e3e',roadB:'#36364a',mtnFar:'#b8ccf0',mtnNear:'#5a6a9a',city:'#1e4a2e',fog:'#c8e8ff',sun:'#ffffff'},
+         {skyTop:'#3b1d9a',skyMid:'#ff6a9a',skyHor:'#ffc070',grassA:'#2e7a3a',grassB:'#246a30',roadA:'#2a2640',roadB:'#322c4c',mtnFar:'#d0a0c0',mtnNear:'#4a3a7a',city:'#1a3a28',fog:'#ff9a7a',sun:'#ff9a1a'},
+         {skyTop:'#03031a',skyMid:'#101a50',skyHor:'#4a4a9a',grassA:'#163a1e',grassB:'#102e18',roadA:'#1c1c30',roadB:'#24243a',mtnFar:'#8a90b8',mtnNear:'#202a58',city:'#0a1e12',fog:'#283060',sun:'#e8f4ff'}]},
+};
+const TOUR=[
+  {name:'NEON CITY', theme:'city',     host:4, wx:'clear', icon:'\u{1F306}', story:'The city never sleeps and neither does REX. He has never crashed, never rushed and never lost a lap on these streets. Finish ahead of him to earn your tour licence.'},
+  {name:'DUNE RUN',  theme:'desert',   host:3, wx:'clear', icon:'\u{1F3DC}', story:'Kilometres of straight tarmac through the dunes. DASH calls it his drag strip: a rocket on the straights, a boat in the corners. Catch him where the road bends.'},
+  {name:'COASTLINE', theme:'coast',    host:2, wx:'rain',  icon:'\u{1F30A}', story:'Storm clouds roll in off the sea. NOVA loves it: she is faster in the wet than anyone on the grid. Keep the car straight, feed the throttle gently and wait for the track to dry.'},
+  {name:'SUMMIT',    theme:'mountain', host:1, wx:'auto',  icon:'\u{1F3D4}', story:'Hairpins, tunnels and a wall of rock on every exit. BLAZE will lean on you in every braking zone. Hold your line, use the slipstream and take him on the way down.'},
+  {name:'FINALE',    theme:'city',     host:0, wx:'auto',  icon:'\u{1F3C1}', story:'Night falls on Neon City. VEGA, the champion, has watched you climb the ladder. Clean, fast, merciless. Win this one and the tour is yours.'},
+];
+const CUPS=[
+  {id:'rookie',  name:'ROOKIE CUP',   icon:'\u{1F949}', races:[{theme:'city',wx:'clear'},{theme:'desert',wx:'clear'},{theme:'coast',wx:'auto'}], req:null, reqPlace:3},
+  {id:'pro',     name:'PRO CUP',      icon:'\u{1F948}', races:[{theme:'city',wx:'auto'},{theme:'coast',wx:'rain'},{theme:'mountain',wx:'clear'},{theme:'desert',wx:'auto'}], req:'rookie', reqPlace:3},
+  {id:'masters', name:'NEON MASTERS', icon:'\u{1F3C6}', races:[{theme:'desert',wx:'auto'},{theme:'coast',wx:'rain'},{theme:'mountain',wx:'auto'},{theme:'city',wx:'rain'}], req:'pro', reqPlace:1},
+];
+const CUP_PTS=[10,8,6,5,4,3];
+const CAR_COST=[0,300,600];
+const UPG_COST=[150,250,400];
+const ACCENTS=[{col:'#ff2fb0',name:'MAGENTA',cost:0},{col:'#19f0ff',name:'CYAN',cost:100},{col:'#ffd200',name:'GOLD',cost:100},{col:'#19e05a',name:'LIME',cost:150},{col:'#ffffff',name:'WHITE',cost:150},{col:'#ff2d55',name:'RED',cost:200}];
+const GLOW_COST=400;
+const BADGES=[
+  {id:'first_win',    icon:'\u{1F947}', name:'FIRST WIN',     desc:'Win a race'},
+  {id:'rain_win',     icon:'\u{1F327}', name:'RAIN MASTER',   desc:'Win a race in the rain'},
+  {id:'tunnel_nitro', icon:'\u{1F687}', name:'TUNNEL VISION', desc:'Fire nitro inside a tunnel'},
+  {id:'clean_race',   icon:'\u{2728}',  name:'UNTOUCHED',     desc:'Finish with zero crashes'},
+  {id:'drift_king',   icon:'\u{1F300}', name:'DRIFT KING',    desc:'Drift 500 m in one race'},
+  {id:'slip_chain',   icon:'\u{1F517}', name:'CHAIN GANG',    desc:'Complete a slipstream chain'},
+  {id:'rival_beaten', icon:'\u{1F3AF}', name:'RIVAL DOWN',    desc:"Beat today's rival"},
+  {id:'speed_demon',  icon:'\u{26A1}',  name:'SPEED DEMON',   desc:'Reach 320 km/h'},
+  {id:'traffic_hero', icon:'\u{1F697}', name:'TRAFFIC HERO',  desc:'Pass 40 cars in one race'},
+  {id:'no_rewind',    icon:'\u{23E9}',  name:'NO REGRETS',    desc:'Win without rewind'},
+  {id:'tour_done',    icon:'\u{1F30D}', name:'WORLD TOURIST', desc:'Finish the world tour'},
+  {id:'cup_win',      icon:'\u{1F3C6}', name:'CUP WINNER',    desc:'Win any cup'},
+];
+const QUESTS=[
+  {id:'q_pass20', text:'Pass 20 cars', n:20, k:'passed'},
+  {id:'q_pass50', text:'Pass 50 cars', n:50, k:'passed'},
+  {id:'q_drift300', text:'Drift 300 m', n:300, k:'driftM'},
+  {id:'q_finish2', text:'Finish 2 races', n:2, k:'finish'},
+  {id:'q_podium', text:'Finish on the podium', n:1, k:'podium'},
+  {id:'q_win', text:'Win a race', n:1, k:'win'},
+  {id:'q_nitro6', text:'Fire nitro 6 times', n:6, k:'nitros'},
+  {id:'q_rain', text:'Finish a rain race', n:1, k:'rain'},
+  {id:'q_time', text:'Finish a time attack', n:1, k:'timeAttack'},
+  {id:'q_desert', text:'Race on Dune Run', n:1, k:'desert'},
+  {id:'q_mountain', text:'Race on Summit', n:1, k:'mountain'},
+  {id:'q_clean', text:'Finish with 0 crashes', n:1, k:'clean'},
+  {id:'q_chain', text:'Complete a slipstream chain', n:1, k:'chain'},
+  {id:'q_speed', text:'Reach 300 km/h', n:1, k:'fast'},
+];
+const MISSIONS=[ {type:'pass', n:30, text:'PASS 30 CARS'}, {type:'drift', n:400, text:'DRIFT 400 m'}, {type:'speed', n:20, text:'HOLD 240+ km/h FOR 20 s'} ];
+// ============================================================ profile / meta progression (coins, unlocks, badges, tour, cups, quests, streak)
+const META_KEY='neonrush_meta_v1';
+const meta={v:1,name:'',plate:'',coins:0,cars:[true,false,false],up:[{top:0,accel:0,grip:0},{top:0,accel:0,grip:0},{top:0,accel:0,grip:0}],cos:{accent:-1,glow:false,glowOn:true,owned:[0]},badges:{},tour:0,cups:{},cupRun:null,quests:{day:'',ids:[],prog:{},done:{}},streak:{n:0,last:''},races:0,wins:0,dailyBest:null};
+function loadMeta(){ try{ const m=JSON.parse(localStorage.getItem(META_KEY)||'null'); if (m && m.v===1){ for (const k in m) if (k in meta) meta[k]=m[k]; } }catch(e){}
+  if (!Array.isArray(meta.cars)||meta.cars.length<3) meta.cars=[true,false,false]; meta.cars[0]=true;
+  if (!Array.isArray(meta.up)||meta.up.length<3) meta.up=[{top:0,accel:0,grip:0},{top:0,accel:0,grip:0},{top:0,accel:0,grip:0}];
+  if (!meta.cos||!Array.isArray(meta.cos.owned)) meta.cos={accent:-1,glow:false,glowOn:true,owned:[0]}; if (!meta.quests||!Array.isArray(meta.quests.ids)) meta.quests={day:'',ids:[],prog:{},done:{}}; if (!meta.streak) meta.streak={n:0,last:''}; if (!meta.badges) meta.badges={}; if (!meta.cups) meta.cups={}; }
+const api=(path)=>{ try{ let o=window.Arcade; for (const p of path.split('.')){ if (!o) return null; o=o[p]; } return typeof o==='function'?o:null; }catch(e){ return null; } };
+function saveMeta(){ try{ localStorage.setItem(META_KEY,JSON.stringify(meta)); }catch(e){}
+  try{ const f=api('cloud.save'); if (f) f('race'); }catch(e){}
+  try{ const f=api('meta.progress'); if (f) f('race',{coins:meta.coins,badges:Object.keys(meta.badges).length,tour:meta.tour,cups:meta.cups,races:meta.races,wins:meta.wins,streak:meta.streak.n}); }catch(e){} }
+loadMeta();
+function dayKey(d){ d=d||new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function hashStr(s){ let h=2166136261; for (let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function dailySeed(){ try{ const f=api('daily.seed'); if (f){ const v=f(); if (typeof v==='number' && isFinite(v)) return (v>>>0)||1; if (v!=null) return hashStr(String(v))||1; } }catch(e){} return hashStr(dayKey())||1; }
+function todayRival(){ return dailySeed()%RIVALS.length; }
+function reducedMotion(){ const f=api('fx.reducedMotion'); try{ return f?!!f():false; }catch(e){ return false; } }
+function colorblind(){ const f=api('a11y.colorblind'); try{ return f?!!f():false; }catch(e){ return false; } }
+function music(cmd,v){ try{ const m=window.Arcade&&window.Arcade.music; if (!m) return; if (cmd==='start'&&typeof m.start==='function') m.start('synthwave',{bpm:124,intensity:v==null?0.5:v}); else if (cmd==='stop'&&typeof m.stop==='function') m.stop(); else if (cmd==='int'&&typeof m.intensity==='function') m.intensity(v); }catch(e){} }
+function myName(){ return (meta.name||'').trim()||'YOU'; }
+function ensureQuests(){ const dk=dayKey(); if (meta.quests.day===dk && meta.quests.ids.length===3) return; const r=rng((dailySeed()^0x5bd1e995)|0); const ids=[]; const pool=QUESTS.map(q=>q.id); while (ids.length<3 && pool.length){ const i=(r()*pool.length)|0; ids.push(pool.splice(i,1)[0]); } meta.quests={day:dk,ids,prog:{},done:{}}; saveMeta(); }
+function questAdd(k,n){ if (!n) return; let changed=false; for (const id of meta.quests.ids){ const q=QUESTS.find(x=>x.id===id); if (!q || q.k!==k || meta.quests.done[id]) continue; meta.quests.prog[id]=Math.min(q.n,(meta.quests.prog[id]||0)+n); changed=true; if (meta.quests.prog[id]>=q.n){ meta.quests.done[id]=true; meta.coins+=40; S.questPops.push(q.text); } } if (changed) saveMeta(); }
+function touchStreak(){ const dk=dayKey(); try{ const f=api('meta.touch'); if (f) f('race'); }catch(e){} if (meta.streak.last===dk) return; const y=new Date(); y.setDate(y.getDate()-1); meta.streak.n = meta.streak.last===dayKey(y) ? meta.streak.n+1 : 1; meta.streak.last=dk; }
+function streakN(){ try{ const f=api('meta.streak'); if (f){ const v=f('race'); if (typeof v==='number') return v; if (v && typeof v.n==='number') return v.n; } }catch(e){} return meta.streak.n; }
+function award(id){ if (meta.badges[id]) return false; const b=BADGES.find(x=>x.id===id); if (!b) return false; meta.badges[id]=Date.now(); meta.coins+=60; S.newBadges.push(b); popup('BADGE: '+b.name+'  +60','#ffd200'); saveMeta(); return true; }
+function hitStop(ms){ if (reducedMotion()) return; const f=api('fx.hitStop'); if (f){ try{ f(ms); return; }catch(e){} } S.hitStopT=Math.max(S.hitStopT,ms/1000); }
 const LANE=[-0.68,0,0.68], laneFree=[1,1,1];
-const opts={car:0,wx:'auto'}; try{ const o=JSON.parse(localStorage.getItem('neonrush_opts')||'null'); if (o){ opts.car=clamp(o.car|0,0,CARS.length-1); if (o.wx==='clear'||o.wx==='auto'||o.wx==='rain') opts.wx=o.wx; } }catch(e){}
+const opts={car:0,wx:'auto',mode:'race',theme:'city',diff:'normal'}; try{ const o=JSON.parse(localStorage.getItem('neonrush_opts')||'null'); if (o){ opts.car=clamp(o.car|0,0,CARS.length-1); if (o.wx==='clear'||o.wx==='auto'||o.wx==='rain') opts.wx=o.wx; if (o.mode && MODES[o.mode] && o.mode!=='tour' && o.mode!=='cup') opts.mode=o.mode; if (o.theme && THEMES[o.theme]) opts.theme=o.theme; if (o.diff && DIFFS[o.diff]) opts.diff=o.diff; } }catch(e){}
+if (!meta.cars[opts.car]) opts.car=0;
 let CARI=opts.car, CAR=CARS[CARI];
 function saveOpts(){ try{ localStorage.setItem('neonrush_opts',JSON.stringify(opts)); }catch(e){} }
 const canvas = document.getElementById('c');
@@ -219,7 +410,7 @@ let W=0, H=0, DPR=1, touchMode = ('ontouchstart' in window) || (navigator.maxTou
 
 // ============================================================ palette / time of day
 const PAL_KEYS = ['skyTop','skyMid','skyHor','grassA','grassB','roadA','roadB','rumbleA','rumbleB','lane','mtnFar','mtnNear','city','sun','fog','edge'];
-const PALS = [
+let PALS = [
  { t:0.00, skyTop:'#1240ff', skyMid:'#19c8ff', skyHor:'#fff38a', grassA:'#19e05a', grassB:'#12b845', roadA:'#2a2a44', roadB:'#323252', rumbleA:'#ff2d55', rumbleB:'#ffffff', lane:'#ffd200', mtnFar:'#7a3dff', mtnNear:'#4c1fc2', city:'#2b1180', sun:'#fff6a0', fog:'#3ad4ff', edge:'#ffffff', stars:0, win:0.15, lamp:0 },
  { t:0.30, skyTop:'#1240ff', skyMid:'#19c8ff', skyHor:'#fff38a', grassA:'#19e05a', grassB:'#12b845', roadA:'#2a2a44', roadB:'#323252', rumbleA:'#ff2d55', rumbleB:'#ffffff', lane:'#ffd200', mtnFar:'#7a3dff', mtnNear:'#4c1fc2', city:'#2b1180', sun:'#fff6a0', fog:'#3ad4ff', edge:'#ffffff', stars:0, win:0.15, lamp:0 },
  { t:0.50, skyTop:'#3b1d9a', skyMid:'#ff2fb0', skyHor:'#ff6a00', grassA:'#14cc52', grassB:'#0fa63f', roadA:'#2a2648', roadB:'#332c58', rumbleA:'#ff2d55', rumbleB:'#fff0f8', lane:'#ffd200', mtnFar:'#8a2ac8', mtnNear:'#4a128a', city:'#24085a', sun:'#ff9a1a', fog:'#ff7a2a', edge:'#ffe6ff', stars:0.2, win:0.6, lamp:0.6 },
@@ -228,6 +419,8 @@ const PALS = [
  { t:1.00, skyTop:'#04021a', skyMid:'#1a0a55', skyHor:'#7a1ab8', grassA:'#0fa64a', grassB:'#0b7d38', roadA:'#20203c', roadB:'#262648', rumbleA:'#ff2d55', rumbleB:'#19f0ff', lane:'#ffd200', mtnFar:'#3a1a8e', mtnNear:'#1e0a56', city:'#12053a', sun:'#e8f4ff', fog:'#5a1a9a', edge:'#19f0ff', stars:1, win:1, lamp:1 },
 ];
 for (const p of PALS) for (const k of PAL_KEYS) p[k]=hex(p[k]);
+const PALS_BASE=PALS;
+function themePals(t){ const T=THEMES[t]; if (!T||!T.pal) return PALS_BASE; const out=[]; for (let i=0;i<6;i++){ const b=PALS_BASE[i], ov=T.pal[i>>1]; const p=Object.assign({},b); for (const k in ov) p[k]=hex(ov[k]); out.push(p); } return out; }
 const pal = { step:-1, stars:0, win:0, lamp:0, night:0 }; // current colour strings
 const tmpc=[0,0,0];
 const PAL_STEPS=640, WETC=[16,20,46], WETF=[110,122,160];
