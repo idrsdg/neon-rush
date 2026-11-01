@@ -30,6 +30,20 @@ window.NEON_RUSH_KEYS = {
   // one confetti piece: [scale, alpha]
   conf: [[0,[0,1],'back'],[0.1,[1.25,1],'io'],[0.2,[1,1],'hold'],[2.2,[1,1],'in2'],[2.8,[0.8,0],'hold']],
  },
+ // neon signs: one hand-keyed level sequence per sign (1 = lit), stepped at 20 fps; most hum steadily, a few stutter or die and relight
+ NEON_FLICKER:[
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0.85,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0.3,0.3,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0.4,0,1,0.6,1,1],
+  [1,0.92,1,0.95,1,1,0.9,1,1,0.94,1,1,1,0.9,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1],
+ ],
+ // dust devil puffs: [phase, radius scale, extra spin]
+ DUST_DEVIL:[[0,1,0.4],[0.33,0.7,0.6],[0.66,0.45,0.85],[0.15,0.85,0.3]],
+ // grandstand crowd: arms-up pose on these beats (6 beats/s, offset per stand)
+ BIRD_FLAP:[0,0,1,2,2,1],   /* wing pose per step at 9 fps: up, up, level, down, down, level */
+ CROWD_BEAT:[0,1,1,0,0,1,0,1,1,1,0,0],
  NITRO_FLICK:[1,0.86,1.1,0.93,1.05,0.9,1.08,0.95],   /* hand-keyed flame loop, stepped at 24 fps */
  LIGHT_T:[0.55,1.05,1.55,2.05,2.55],   /* start lights: one red every 0.5 s, then a short random hold before lights out */
  // confetti: two cannons at the bottom corners fire on keyed beats; piece: [delay, angle deg from vertical, speed (screen heights/s), spin rad/s, shape, colour, flutter phase]
