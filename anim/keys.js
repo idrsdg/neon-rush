@@ -27,6 +27,12 @@ window.NEON_RUSH_KEYS = {
   finTitle: [[0,[0.82,0,0],'back'],[0.2,[1.04,1,0.4],'io'],[0.34,[1,1,1],'hold'],[2.4,[1,1,1],'in2'],[2.9,[1.02,0,1],'hold']],
   // moment lines (popups): [alpha, y offset, scale]
   pop: [[0,[0,10,0.94],'out3'],[0.16,[1,0,1],'hold'],[1.25,[1,0,1],'in2'],[1.6,[0,-12,1],'hold']],
+  // gear change (upshift): [body drop (car heights), camera kick (px at 800 high), pipe flame size]: the drive line unloads, the car sits, the pipes spit
+  gearKick: [[0,[0,0,0],'out3'],[0.04,[0.022,2.2,1],'io'],[0.12,[-0.01,-0.9,0.55],'io'],[0.2,[0.004,0.3,0.15],'io'],[0.3,[0,0,0],'hold']],
+  // near miss: [streak alpha, streak travel (0..1 across the screen edge), body wobble (rad)]
+  nearMiss: [[0,[0,0,0],'out3'],[0.06,[1,0.15,0.03],'io'],[0.22,[0.7,0.55,-0.018],'in2'],[0.45,[0,1,0.006],'io'],[0.6,[0,1,0],'hold']],
+  // drift entry: [extra yaw (deg), smoke burst (0..1), counter-steer look (deg)]
+  driftIn: [[0,[0,0,0],'out3'],[0.12,[7,1,0],'io'],[0.35,[4,0.6,-3],'io'],[0.7,[3,0.3,-2],'io'],[1.0,[2.5,0.2,-1.5],'hold']],
   // one confetti piece: [scale, alpha]
   conf: [[0,[0,1],'back'],[0.1,[1.25,1],'io'],[0.2,[1,1],'hold'],[2.2,[1,1],'in2'],[2.8,[0.8,0],'hold']],
  },
@@ -42,6 +48,7 @@ window.NEON_RUSH_KEYS = {
  // dust devil puffs: [phase, radius scale, extra spin]
  DUST_DEVIL:[[0,1,0.4],[0.33,0.7,0.6],[0.66,0.45,0.85],[0.15,0.85,0.3]],
  // grandstand crowd: arms-up pose on these beats (6 beats/s, offset per stand)
+ KERB_RUMBLE:[-1,0.7,-0.6,1,-0.3,0.9,-1,0.4,0.8,-0.7],   /* body / wheel jolts on the kerb blocks, stepped at 30 fps (car heights x 0.01) */
  BIRD_FLAP:[0,0,1,2,2,1],   /* wing pose per step at 9 fps: up, up, level, down, down, level */
  CROWD_BEAT:[0,1,1,0,0,1,0,1,1,1,0,0],
  NITRO_FLICK:[1,0.86,1.1,0.93,1.05,0.9,1.08,0.95],   /* hand-keyed flame loop, stepped at 24 fps */
