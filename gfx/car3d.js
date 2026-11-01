@@ -402,7 +402,8 @@ function render(job){ const t0=Date.now(); const key=job.model+'|'+JSON.stringif
   const col=new Float32Array(N*4), emi=new Float32Array(N*3); const lp=[0,0,0], nn=[0,0,0], O=SH; const Ld=norm(E.L), Vd=[0,sp,-cp]; const Hd=norm([Ld[0]+Vd[0],Ld[1]+Vd[1],Ld[2]+Vd[2]]); const ec=[0,0,0];
   const shadowA=layer!=='wheel'?car.shadow.paint:null; const gp=[0,0,0];
   for (let o=0;o<N;o++){ const id=G.tri[o];
-    if (id<0 || list[TRI[id][0]].mask){ if (!shadowA) continue; // ground point under this pixel (y=0 plane), back into car space
+    if (id>=0 && list[TRI[id][0]].mask) continue;   /* wheel silhouette: left clear, the wheel sprites show through */
+    if (id<0){ if (!shadowA) continue; // ground point under this pixel (y=0 plane), back into car space
       const X=(o%W+0.5+x0)/pm, Y=(((o/W)|0)+0.5+y0)/pm; const fr_=f+dRef; const wz=-Y*f/(sp*fr_+Y*cp); if (!(wz>-50&&wz<50)) continue; const s_=fr_/(f+wz*cp); const wx=X/s_; gp[0]=wx*cy-wz*sy; gp[2]=wx*sy+wz*cy; O.a=0; shadowA(gp,null,O); if (O.a>0.004){ col[o*4]=0; col[o*4+1]=0; col[o*4+2]=0.01; col[o*4+3]=O.a; } continue; } const T=TRI[id], m=list[T[0]], V=m.v; const a=T[1],b=T[2],c=T[3], w1=G.b1[o], w2=G.b2[o], w0=1-w1-w2;
     for (let j=0;j<3;j++){ lp[j]=V[a*9+3+j]*w0+V[b*9+3+j]*w1+V[c*9+3+j]*w2; nn[j]=V[a*9+6+j]*w0+V[b*9+6+j]*w1+V[c*9+6+j]*w2; }
     O.m=0; O.a=1; O.e[0]=O.e[1]=O.e[2]=0; O.gloss=1; O.c[0]=O.c[1]=O.c[2]=0.5;
@@ -466,6 +467,13 @@ const API={ render, MODELS:Object.keys(MODELS), version:1 };
 root.NR_CAR3D=API;
 // worker side
 if (typeof document==='undefined' && typeof self!=='undefined' && typeof postMessage==='function'){
-  self.onmessage=(ev)=>{ const jobs=ev.data.jobs||[]; for (const j of jobs){ try{ const r=render(j); const tr=[r.data.buffer]; if (r.emis) tr.push(r.emis.buffer); postMessage({id:j.id, r}, tr); } catch(e){ postMessage({id:j.id, err:String(e&&e.stack||e)}); } } postMessage({done:ev.data.batch}); };
+  // frames leave the worker as ImageBitmaps (GPU-ready, nothing to copy on the main thread) plus half and quarter size copies for distant cars
+  const canBmp=typeof OffscreenCanvas!=='undefined' && typeof createImageBitmap!=='undefined';
+  const toBmp=(data,w,h)=>{ const c=new OffscreenCanvas(w,h); c.getContext('2d').putImageData(new ImageData(data,w,h),0,0); return c; };
+  const lod=(src,w,h,k)=>{ const W2=Math.max(1,Math.round(w/k)), H2=Math.max(1,Math.round(h/k)); const c=new OffscreenCanvas(W2,H2), g=c.getContext('2d'); g.imageSmoothingQuality='high'; g.drawImage(src,0,0,W2,H2); return c.transferToImageBitmap(); };
+  self.onmessage=(ev)=>{ const jobs=ev.data.jobs||[]; for (const j of jobs){ try{ const r=render(j);
+      if (canBmp){ const c=toBmp(r.data,r.w,r.h); const out={w:r.w,h:r.h,ox:r.ox,oy:r.oy,anchors:r.anchors,wc:r.wc,pm:r.pm}; out.l1=j.lod?lod(c,r.w,r.h,2):null; out.l2=j.lod?lod(c,r.w,r.h,4):null; out.bmp=c.transferToImageBitmap(); out.ebmp=r.emis?toBmp(r.emis,r.w,r.h).transferToImageBitmap():null;
+        const tr=[out.bmp]; if (out.ebmp) tr.push(out.ebmp); if (out.l1) tr.push(out.l1,out.l2); postMessage({id:j.id, r:out}, tr); }
+      else { const tr=[r.data.buffer]; if (r.emis) tr.push(r.emis.buffer); postMessage({id:j.id, r}, tr); } } catch(e){ postMessage({id:j.id, err:String(e&&e.stack||e)}); } } postMessage({done:ev.data.batch}); };
 }
 })(typeof self!=='undefined'?self:this);
