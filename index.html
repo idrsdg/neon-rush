@@ -311,7 +311,9 @@
 </div>
 <script src="../games/arcade.js"></script>
 <script src="anim/keys.js"></script>
-<script src="gfx/car3d.js?v=4"></script>
+<script src="three.min.js"></script>
+<script src="gfx/car3d.js?v=5"></script>
+<script src="gfx/cars-gl.js?v=1"></script>
 <script>
 (() => {
 'use strict';
@@ -866,7 +868,7 @@ function buildSized(){
   A.cone = mk(Math.round(carW*3.2), Math.round(H*0.55)); { const g=A.cone.getContext('2d'); const cw=A.cone.width, ch=A.cone.height; const gr=g.createLinearGradient(0,ch,0,0); gr.addColorStop(0,'rgba(255,245,200,.55)'); gr.addColorStop(0.5,'rgba(255,230,150,.18)'); gr.addColorStop(1,'rgba(255,220,120,0)'); g.fillStyle=gr; g.beginPath(); g.moveTo(cw*0.5-carW*0.42,ch); g.lineTo(cw*0.5-carW*0.1,0); g.lineTo(cw*0.5+carW*0.1,0); g.lineTo(cw*0.5+carW*0.42,ch); g.closePath(); g.fill(); }
   buildGauge();
   pal.step=-1; // force palette re-render
-  c3Plan();
+  glPlan();
 }
 function buildPaletteSized(){ /* backgrounds are pre-rendered in buildBg(); nothing to redraw per palette step */ }
 function mixPal(a,b,t){ return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]; }
@@ -1089,7 +1091,7 @@ function rebuildPlayer(i){ const car=effCar(i); const o={}; for (const k of [1,2
   const cv=mk(240,150), g=cv.getContext('2d'); drawPlayerWheels(g,1,1); drawPlayerBody(g,1,false,car); A.carPrev[i]=cv;
   for (const pc of (PICK_CV[i]||[])){ const g2=pc.getContext('2d'); g2.clearRect(0,0,240,150); g2.drawImage(cv,0,0); }
   const acc=car.acc; A.underglow=radial(256,96,acc.length===7?('rgba('+hex(acc).join(',')+',.9)'):'rgba(25,240,255,.9)','rgba(0,0,0,0)');
-  A.ghostImg=mk(240,150); { const g3=A.ghostImg.getContext('2d'); g3.drawImage(cv,0,0); g3.globalCompositeOperation='source-atop'; g3.fillStyle='rgba(25,240,255,.55)'; g3.fillRect(0,0,240,150); } if (i===CARI && W) c3Plan(); }
+  A.ghostImg=mk(240,150); { const g3=A.ghostImg.getContext('2d'); g3.drawImage(cv,0,0); g3.globalCompositeOperation='source-atop'; g3.fillStyle='rgba(25,240,255,.55)'; g3.fillRect(0,0,240,150); } if (i===CARI && W) glPlan(); }
 function makeRival(i){ const R_=RIVALS[i], z=rivalGridZ(i);
   return {kind:'car', rival:i, name:R_.name, col:R_.col, offset:rivalGridX(i), z, w:0.3, worldW:620, speed:0, img:A.rivals[i], c3:'r'+i, passed:false, horn:0, ind:0, indT:0, brake:0, brakeT:0, dist:z, lane:rivalGridX(i)<0?0:2, finT:null, tagW:0, tagF:'',
     today:(i===S.todayR && S.raceMode!=='tour'), host:(S.tourStop>=0 && TOUR[S.tourStop] && TOUR[S.tourStop].host===i), lean:0, noise:0, noiseT:0, ahead:true, label:''}; }
@@ -1655,54 +1657,101 @@ function hazeDraw(x,y,w2,h2,k){ const m=ctx.getTransform(); let X=Math.round(m.a
 // keyed exhaust backfire: pop, gap, second pop, fade (about 0.13 s)
 function bfScale(t){ return t<0.03?1 : t<0.06?0.35 : t<0.09?0.85 : t<0.13?0.35*(1-(t-0.09)/0.04) : 0; }
 function bottomPad(){ return touchMode ? 108 : 22; }
-// ============================================================ 3D car sprites (ours)
-// race/gfx/car3d.js models every car, van, truck and bike in code and rasterises them (z-buffer, per-pixel normals, clear-coat paint
-// reflecting the sky, glass, chrome, lenses) in Web Workers. Frames come back as canvases at device resolution: one per yaw angle and
-// time of day (day / sunset / night), lights unlit plus a separate lit-lens overlay; the player's wheels are their own sprites per spin
-// phase so they turn, steer and ride their own springs. Until a set arrives the older flat sprites are drawn, so nothing ever waits.
-const YAW_P=[-24,-15,-7,0,7,15,24], YAW_R=[-36,-24,-12,0,12,24,36], YAW_T=[-30,-15,0,15,30];
+// ============================================================ live 3D cars (ours)
+// race/gfx/car3d.js models every car, van, truck and bike in code and bakes paint + geometry in a Web Worker; race/gfx/cars-gl.js draws them
+// with three.js every frame: continuous yaw from steering, lane speed and the road's curve, body roll and dive, wheels that steer and spin,
+// lamps as light channels, lighting from the palette. Each car is rendered into a cell of an offscreen GL canvas with the exact 2D projection
+// of this frame (same CAMD, horizon, canvas transform) and copied 1:1 into the frame at its place in the painter's order (glPrepass / glBlit).
+// Until a model is baked (first visit, a few seconds) the older flat sprites are drawn, so nothing ever waits.
 const C3COL={h:['#c9ccd6','#8a8f9e','#3a4256','#7a6a58','#7a3a40','#e6e2d6'], v:['#e8e8e8','#b8b0a0','#5a6a7a'], t:['#9aa0aa','#5a6a8a','#7a5a4a'], b:['#6a6e7a','#3a4a6a','#8a5a3a']};   /* traffic is muted: the five rivals keep the only bold liveries */
-const C3MOD={h:'hatch',v:'van',t:'truck',b:'bike'}, C3WD={hatch:1.84,van:2.0,truck:2.5,bike:0.8}, PMODEL=['comet','titan','arrow'];
-const C3={ S:{}, q:[], W:[], gen:1, jid:0, live:new Map(), fails:0, pending:0, n:0, got:0, sync:false };
+const C3MOD={h:'hatch',v:'van',t:'truck',b:'bike'}, PMODEL=['comet','titan','arrow'];
+const GLC={on:false, atlas:0, M:null, Minv:null, P:{w:0,h:0,CAMD:1,HOR:0,M:null,pos:[0,0,0],upm:1,yaw:0,pitch:0,roll:0,body:{dy:0,pitch:0,roll:0,sx:1,sy:1},wheels:{spin:0,steer:0,dy:[0,0,0,0,0,0,0,0,0,0]},shadowDy:0,shadowA:0.7,lights:{run:0,brake:0,indL:0,indR:0,head:0},blur:0,alpha:1,clipY:null,devW:0,devH:0}, pcell:null, pinst:null, pstate:null, tt:null};
 function c3key(kind,i){ const k=kind==='car'?'h':kind[0]; return k+(i%C3COL[k].length); }
-function c3Workers(){ if (C3.W.length || C3.sync) return; try{ const n=clamp((navigator.hardwareConcurrency|0)-1,1,3); for (let i=0;i<n;i++){ const w=new Worker('gfx/car3d.js?v=4'); const o={w,busy:false}; w.onmessage=(e)=>c3Msg(o,e.data); w.onerror=()=>{ C3.fails++; o.busy=false; if (C3.fails>2 && !C3.got){ C3.sync=true; } c3Pump(); }; C3.W.push(o); } } catch(e){ C3.sync=true; } }
-function c3Live(J){ const s=C3.S[J.key]; return !!s && s.gen===J.gen; }
-function c3Msg(o,m){ if (m.done!=null){ o.busy=false; c3Pump(); return; } const J=C3.live.get(m.id); C3.live.delete(m.id); if (!J || !m.r || !c3Live(J)) return; C3.got++; c3Store(J,m.r); }
-function c3Canvas(data,w,h){ const c=mk(w,h); c.getContext('2d').putImageData(new ImageData(data,w,h),0,0); return c; }
-function c3Store(J,r){ const set=C3.S[J.key]; if (!set || set.gen!==J.gen) return; const fr={cv:r.bmp||c3Canvas(r.data,r.w,r.h), emis:r.bmp?r.ebmp:(r.emis?c3Canvas(r.emis,r.w,r.h):null), l1:r.l1||null, l2:r.l2||null, ox:r.ox, oy:r.oy, w:r.w, h:r.h, an:r.anchors, wc:r.wc, pm:r.pm};
-  if (J.slot==='wheel'){ const T=set.wh[J.tod]||(set.wh[J.tod]=[]); (T[J.yi]||(T[J.yi]=[]))[J.wi*4+J.v]=fr; if (J.tod===0 && J.yi===set.mid && J.wi===3 && J.v===3) set.wheels=true; }
-  else { (set.fr[J.tod]||(set.fr[J.tod]=[]))[J.yi]=fr; if (J.tod===0 && J.yi===set.mid) set.ready=true; } set.n++; }
-function c3Pump(){ if (C3.sync){ if (!C3.tick && C3.q.length){ C3.tick=setTimeout(function run(){ C3.tick=0; const t0=performance.now(); while (C3.q.length && performance.now()-t0<12){ const J=C3.q.shift(); if (!c3Live(J)) continue; try{ c3Store(J,window.NR_CAR3D.render(J.job)); C3.got++; }catch(e){} } if (C3.q.length) C3.tick=setTimeout(run,16); },30); } return; }
-  for (const o of C3.W){ if (o.busy) continue; let J=null; while (C3.q.length){ J=C3.q.shift(); if (c3Live(J)) break; J=null; } if (!J) return; J.job.id=++C3.jid; C3.live.set(J.job.id,J); o.busy=true; o.w.postMessage({jobs:[J.job],batch:J.job.id}); } }
-// the sizes follow the screen: the player's car is drawn 1:1 in device pixels, rivals and traffic at the size they reach when close.
-// Sets that already match (same model, colours, size) are kept; only what changed is rendered again, our car first.
-function c3Plan(force){ if (!W) return; if (!force && (S.mode==='race'||S.mode==='countdown')){ C3.later=true; return; } C3.later=false; const dpr=Math.min(2,window.devicePixelRatio||1), cw=playerDestW(), pmP=Math.round(Math.pow(2,Math.round(Math.log2(cw*dpr/2.0)*6)/6)), ss=dpr>=2?1:2, pmR=Math.round(pmP*0.62), pmT=Math.round(pmP*0.5);
-  const lights=(t)=>t===2?{run:0.55}:{brake:1}; const front=[], back=[]; const want=new Set();
-  const job=(model,o,yaw,tod,pm,pitch,layer,extra)=>Object.assign({model,opts:Object.assign({},o,{lights:lights(tod)}),yaw,pitch,persp:pitch>14?7:10,pm,ss,tod,layer,runIn:tod===2},extra||{});
-  const mkSet=(key,kind,model,yaws,pm,o)=>{ want.add(key); const sig=model+'|'+pm+'|'+ss+'|'+JSON.stringify(o); const old=C3.S[key]; if (old && old.sig===sig) return null;
-    const set={key,kind,model,yaws,pm,fr:[],wh:[],ready:false,wheels:false,n:0,gen:++C3.gen,sig,mid:yaws.indexOf(0),Wd:(C3WD[model]||2.0),prev:old?(old.ready?old:old.prev):null}; if (set.prev) set.prev.prev=null; C3.S[key]=set; return set; };
-  const push=(arr,key,slot,tod,yi,jb,extra)=>{ arr.push(Object.assign({key,slot,tod,yi,job:jb,gen:C3.S[key].gen},extra||{})); };
-  // 1. our car: centre frame first, then the other yaws, its wheels (3 spin phases + motion blur), night, sunset
-  const pc=(key,car)=>{ const model=PMODEL[car.style|0]||'comet', o={col:car.col,acc:car.acc,plate:car.plate||'NEON'}; if (!mkSet(key,'player',model,YAW_P,pmP,o)) return; const order=[3,2,4,1,5,0,6];
-    for (const tod of [0,2,1]){ for (const yi of order) push(front,key,'body',tod,yi,job(model,o,YAW_P[yi],tod,pmP,16,'body'));
-      if (tod!==1) for (const yi of order) for (let wi=0;wi<4;wi++) for (let v=0;v<4;v++) push(front,key,'wheel',tod,yi,job(model,o,YAW_P[yi],tod,pmP,16,'wheel',{wheel:wi,phase:v<3?v*0.419:0,blur:v===3}),{wi,v}); } };
-  /* 2P: both players' cars are prepared while the 2P screen is open (DUO.prep), so nothing is built during the countdown */
-  if ((DUO.on||DUO.prep) && DUO.cars[0]){ pc('p'+CARS.length,DUO.cars[0]); pc('p'+(CARS.length+1),DUO.cars[1]); } if (!DUO.on) pc('p'+CARI,effCar(CARI));
-  // 2. rivals and traffic: day for all first, then night, then sunset (frames are blended day -> sunset -> night with the palette)
-  const baked=(key,model,o,yaws,pm,traffic)=>{ if (!mkSet(key,'baked',model,yaws,pm,o)) return; const ord=[Math.floor(yaws.length/2)]; for (let i=0;i<yaws.length;i++) if (ord.indexOf(i)<0) ord.push(i);
-    for (const tod of [0,2,1]) for (const yi of ord) push(tod?back:front,key,'body',tod,yi,job(model,Object.assign({traffic},o),yaws[yi],tod,pm,12,'baked',{blur:true,lod:true})); };
-  if (!DUO.on) RIVALS.forEach((R_,i)=>baked('r'+i,PMODEL[R_.style|0],{col:R_.col,acc:R_.acc,plate:R_.plate},YAW_R,pmR,false));
-  if (DUO.on||DUO.prep) for (let i=0;i<2;i++){ const c=DUO.cars[i]; if (c) baked('d'+i,PMODEL[c.style|0],{col:c.col,acc:c.acc,plate:c.plate},YAW_R,pmR,false); }
-  for (const k of ['h','v','t','b']) C3COL[k].forEach((c,i)=>baked(k+i,C3MOD[k],{col:c,acc:k==='v'?'#9aa6b8':k==='t'?'#c8b070':'#d8dce6',plate:'NR '+(100+i*37)},YAW_T,Math.round(pmT*(k==='t'?0.85:1)),true));
-  for (const k in C3.S) if (!want.has(k) && k[0]==='p') delete C3.S[k];   /* a car no longer driven: free its frames */
-  C3.q=front.concat(C3.q.filter(c3Live),back); c3Workers(); c3Pump(); }
-function c3Set(key){ const s=C3.S[key]; if (!s) return null; if (s.ready) return s; return s.prev&&s.prev.ready?s.prev:null; }
-function c3Yi(set,yaw){ const Y=set.yaws; let b=0, bd=1e9; for (let i=0;i<Y.length;i++){ const d=Math.abs(Y[i]-yaw); if (d<bd){ bd=d; b=i; } } return b; }
-function c3Frame(set,tod,yi){ const F=set.fr[tod]; let f=F&&F[yi]; if (f) return f; const D=set.fr[0]; if (!D) return null; f=D[yi]; if (f) return f; for (let d=1;d<set.yaws.length;d++){ if (D[yi-d]) return D[yi-d]; if (D[yi+d]) return D[yi+d]; } return null; }
-function c3Ready(){ let n=0, t=0; for (const k in C3.S){ t++; if (C3.S[k].ready) n++; } return {sets:t, ready:n, queued:C3.q.length, frames:C3.got}; }
-// draw one frame (and its lit lenses) so that its anchor point (ax,ay in frame pixels) lands on (X,Y), scaled by k; returns nothing
-function c3Draw(fr,X,Y,k,ax,ay,alpha,clipY){ const dx=X-ax*k, dy=Y-ay*k, dw=fr.w*k, dh=fr.h*k; if (clipY && dy+dh>clipY){ const vis=clipY-dy; if (vis<=0) return; const im=c3Lod(fr,k); ctx.globalAlpha=alpha; ctx.drawImage(im,0,0,im.width,im.height*vis/dh,dx,dy,dw,vis); return; } ctx.globalAlpha=alpha; ctx.drawImage(fr.cv,dx,dy,dw,dh); }
-
+function glInit(){ if (GLC.on || GLC.failed) return GLC.on; if (!window.NR_GL || !window.THREE){ GLC.failed=true; return false; } GLC.on=NR_GL.init(); if (!GLC.on) GLC.failed=true; return GLC.on; }
+/* atlas width for the player's models: the rear face of the car at about one texel per device pixel */
+function glAtlas(){ const px=playerDestW()*Math.min(2,DPR); let Wt=1024; while (Wt<px*2.2 && Wt<2048) Wt*=2; return Wt; }
+function glModelKey(name){ const traffic=name==='hatch'||name==='van'||name==='truck'||name==='bike'; return name+'@'+(traffic?glAtlas()/2:glAtlas()); }
+function glModel(name,front){ if (!glInit()) return null; const traffic=name==='hatch'||name==='van'||name==='truck'||name==='bike'; const aw=traffic?glAtlas()/2:glAtlas(); return NR_GL.model(glModelKey(name),name,{traffic},aw,aw/2,front); }
+/* queue the bakes this screen needs: our car first, the rivals' models, then traffic; models baked for another atlas size are dropped */
+function glPlan(){ if (!W || !glInit()) return; const want=new Set();
+  const req=(name,front)=>{ want.add(glModelKey(name)); glModel(name,front); };
+  if (DUO.on||DUO.prep){ for (const c of DUO.cars) if (c) req(PMODEL[c.style|0],true); } else req(PMODEL[(effCar(CARI).style|0)],true);
+  for (const R_ of RIVALS) req(PMODEL[R_.style|0],false); for (const k of ['h','v','t','b']) req(C3MOD[k],false);
+  /* a model baked for another atlas size (quality step, resize) stays until its replacement is ready, so no car ever drops back to a flat sprite */
+  for (const k in NR_GL.G.models) if (!want.has(k)){ const name=k.split('@')[0]; let fresh=false; for (const w of want) if (w.split('@')[0]===name && NR_GL.ready(w)) fresh=true; if (fresh) NR_GL.dropModel(k); } }
+if (window.NR_GL) NR_GL.onModel(()=>{ if (W) glPlan(); });
+/* the live instance for a car (model + livery + plate), or null while its model bakes */
+function glInst(car){ let key=car.c3, name, o;
+  if (car._p){ const c=CAR; name=PMODEL[c.style|0]; o={col:c.col,acc:c.acc,plate:c.plate||'NEON'}; key='p'+CARI; }
+  else if (car.rival!=null){ const R_=RIVALS[car.rival]; name=PMODEL[R_.style|0]; o={col:R_.col,acc:R_.acc,plate:R_.plate}; key='r'+car.rival; }
+  else if (car.duo!=null){ const c=DUO.cars[car.duo]; if (!c) return null; name=PMODEL[c.style|0]; o={col:c.col,acc:c.acc,plate:c.plate}; key='d'+car.duo; }
+  else if (car.net!=null){ const c=CARS[car.ci|0]||CARS[0]; name=PMODEL[c.style|0]; o={col:car.col||c.col,acc:c.acc,plate:(car.name||'NET').slice(0,7)}; key='n'+car.net; }
+  else { if (!key) return null; const kk=key[0], i=+key.slice(1)||0; name=C3MOD[kk]; if (!name) return null; o={col:C3COL[kk][i%C3COL[kk].length], acc:kk==='v'?'#9aa6b8':kk==='t'?'#c8b070':'#d8dce6', plate:'NR '+(100+i*37)}; }
+  let mk=glModelKey(name); if (!NR_GL.ready(mk)){ glModel(name,false); mk=NR_GL.anyModel(name); if (!mk) return null; } return NR_GL.instance(key,mk,o); }
+// critically damped smoothing (no overshoot, continuous velocity): returns the new value, writes velocity into g[vk]
+function sdamp(g,k,vk,target,om,dt){ const x=g[k]-target, v=g[vk]; const t2=1+om*dt, e=1/(t2*t2); const temp=(v+om*x)*dt; g[vk]=(v-om*temp)*e; g[k]=target+(x+temp)*e; return g[k]; }
+const RP2={x:0,y:0,sc:0,clip:0}, PCAR={_p:1};
+function glFog(n){ return (1 - fogAmt(n/DRAW)*0.85)*clamp((DRAW-n)/24,0,1); }
+/* before the world is drawn: every visible car rendered into its cell with this frame's projection. Dynamics (yaw lag, roll, dive, wheel spin)
+   advance on the game clock here, once per rendered frame, so motion is continuous at any refresh rate. */
+function glPrepass(w,h,base,sf,ck){ if (!GLC.on) return; NR_GL.begin(); NR_GL.setEnv(Math.max(pal.night,0), pal.sunset, S.tunnelK, S.wet, ((S.pos/SEG)%6)/6); const M=ctx.getTransform(); GLC.M=M; GLC.Minv=M.inverse();
+  const P=GLC.P; P.w=w; P.h=h; P.CAMD=CAMD; P.HOR=HOR_OFF; P.devW=canvas.width; P.devH=canvas.height;
+  const NS=segments.length, nt=Math.max(pal.night,S.tunnelK*0.7), blink=Math.sin(S.time*14)>0?1:0;
+  for (let n=0;n<DRAW;n++){ const seg=segments[(base.i+n)%NS]; if (!seg.cars.length) continue; const p1=seg.p1, p2=seg.p2;
+    for (const car of seg.cars){ car._cell=null; const pct=(car.z%SEG)/SEG; const cz=p1.cz+(p2.cz-p1.cz)*pct; if (cz<=CAMD*20 || (S.duo && car.duo===S.duoI)) continue;
+      const inst=glInst(car); if (!inst) continue; const meta=inst.model.meta, worldW=car.worldW||600, upm=worldW/meta.Wd;
+      if (!roadPt(car.z+meta.rz*upm,car.offset,w,RP)) continue; const czr=CAMD/RP.sc; const carW=RP.sc*w/2*worldW; if (carW<1.5) continue;
+      const kx=(w/2)*CAMD, ky=(h/2)*CAMD; const xr=(RP.x-w/2)*czr/kx, yr=(h/2+HOR_OFF-RP.y)*czr/ky;
+      let yaw0=0, pitch0=0; if (roadPt(car.z+meta.fz*upm,car.offset,w,RP2)){ const czf=CAMD/RP2.sc, xf=(RP2.x-w/2)*czf/kx, yf=(h/2+HOR_OFF-RP2.y)*czf/ky; const dz=czf-czr; if (dz>1){ yaw0=Math.atan2(xf-xr,dz); pitch0=-Math.atan2(yf-yr,Math.hypot(xf-xr,dz)); } }
+      // dynamics on the game clock
+      let g=car._g; if (!g){ g=car._g={t:S.time,o:car.offset,spd:car.speed,y:0,yv:0,roll:0,rv:0,pitch:0,pv:0,spin:0,br:0}; }
+      let dt=S.time-g.t; if (dt<0 || dt>0.25){ dt=0; g.o=car.offset; g.spd=car.speed; } g.t=S.time;
+      const fwd=Math.max(60,car.speed*(car.hold||1)); let yawLane=0, acc=0; if (dt>0){ const lv=(car.offset-g.o)*ROADW/dt; yawLane=clamp(Math.atan2(lv,fwd),-0.35,0.35); acc=(car.speed-g.spd)/dt; g.o=car.offset; g.spd=car.speed; sdamp(g,'y','yv',yawLane,9,dt);
+        const curveRoll=findSeg(car.z).curve*0.012*Math.min(1,car.speed/MAX_SPEED)*Math.min(1,car.speed/MAX_SPEED); sdamp(g,'roll','rv',clamp(g.yv*0.12+curveRoll+(car.lean||0)*0.4,-0.09,0.09),8,dt);
+        sdamp(g,'pitch','pv',clamp(-acc/MAX_SPEED*0.25,-0.05,0.05),6,dt); g.spin+=car.speed*(car.hold||1)*dt/(meta.wheels[0].r*upm); g.br=lerp(g.br,car.brake?1:0,1-Math.exp(-dt*14)); }
+      glVirtual(P,xr,yr,czr,upm); P.yaw=yaw0+g.y; P.pitch=pitch0+g.pitch; P.roll=g.roll;
+      const sfc=car.speed/MAX_SPEED; P.body.dy=-Math.abs(Math.sin(S.time*(8+(car.z%7))+car.z*0.013))*0.005*clamp(sfc*1.5,0,1); P.body.pitch=0; P.body.roll=0; P.body.sx=1; P.body.sy=1;
+      P.wheels.spin=g.spin; P.wheels.steer=clamp(g.y*2.2,-0.45,0.45); for (let i=0;i<10;i++) P.wheels.dy[i]=0; P.shadowDy=0; P.shadowA=0.72*(1-0.45*nt);
+      P.lights.run=nt*0.6; P.lights.brake=g.br; P.lights.indL=car.ind<0?blink:0; P.lights.indR=car.ind>0?blink:0; P.lights.head=0;
+      P.blur=clamp((sfc-0.05)/0.07,0,1); P.alpha=glFog(n); P.clipY=RP.clip; P.M=M;
+      const cell=NR_GL.render(inst,P); if (!cell) continue; cell.gy=M.b*RP.x+M.d*RP.y+M.f; cell.gx=M.a*RP.x+M.c*RP.y+M.e; cell.carW=carW; cell.clipped=!!RP.clip && (M.d*RP.clip+M.f)<cell.dy+cell.dh-1; cell.cz=czr; car._cell=cell; car._inst=inst; } }
+  GLC.pcell=null; if (!ck) glPlayer(w,h,sf,M);
+  NR_GL.end(); }
+/* our car: placed where the chase camera puts it (bottom centre, the keyed start / finish cameras move it through S.cv), at the size playerDestW() */
+function glPlayer(w,h,sf,M0){ const inst=glInst(PCAR); GLC.pinst=inst; if (!inst) return; const meta=inst.model.meta;
+  const cw=playerDestW(), ch=cw*150/240, k1=h/(2*CAM_H), baseY0=h-bottomPad()-ch-h*0.028, baseY=baseY0+(S.camAir.x-S.airH)*k1, cx=w/2, gY=baseY0+ch*0.98, Yb=baseY+ch*0.98;
+  let M=M0; if (S.cv.k!==1 || S.cv.dx || S.cv.dy){ ctx.save(); ctx.translate(cx+S.cv.dx, gY+S.cv.dy); ctx.scale(S.cv.k,S.cv.k); ctx.translate(-cx,-gY); M=ctx.getTransform(); ctx.restore(); }
+  const upm=600/meta.Wd, cz=600*CAMD*w/(2*cw), kx=(w/2)*CAMD, ky=(h/2)*CAMD; const mpp=meta.Wd/cw;   /* metres per CSS px at the car */
+  const P=GLC.P; P.M=M; glVirtual(P,0,(h/2+HOR_OFF-Yb)*cz/ky,cz,upm);
+  let g=GLC.pstate; if (!g || g.inst!==inst){ g=GLC.pstate={inst,t:S.time,spin:0,wheelPh:S.wheelPhase}; } let dt=S.time-g.t; if (dt<0||dt>0.25) dt=0; g.t=S.time; g.spin+=S.speed*dt/(meta.wheels[0].r*upm);
+  const camYaw=Math.atan2(-(S.camF-S.playerX)*ROADW-CP.ox, PLAYER_Z*CP.k+CP.b+300);
+  let dIn=0; if (S.drT<1 && S.drift>0.2){ sample(KA.driftIn,S.drT,KH); dIn=KH[0]*(S.slipDir||1); }
+  P.yaw=clamp((S.steer.x*6 + S.driftVis*S.slipDir*15 + dIn + S.wob.x*1.5)*0.01745, -0.45, 0.45)+camYaw; P.pitch=0;
+  let gk=0; if (S.gkT<0.3){ sample(KA.gearKick,S.gkT,KH); gk=KH[0]; } let nmW=0; if (S.nmT<0.6){ sample(KA.nearMiss,S.nmT,KH); nmW=KH[2]*S.nmSide; }
+  const ax_=Math.abs(S.playerX), kerbOn=ax_>0.86 && ax_<1.15 && S.speed>200 && S.mode==='race'; const KR=NRK.KERB_RUMBLE, kr=kerbOn&&KR?KR[((S.time*30)|0)%KR.length]*0.01*ch*Math.min(1,sf*1.4):0;
+  let lsq=0, lnose=0; if (S.launchT<1.05){ sample(KA.launch,S.launchT,KS); lsq=KS[0]*S.launchK; lnose=KS[1]*S.launchK; }
+  const bounce=(sf>0.05? Math.sin(S.time*37)*1.2*sf + Math.sin(S.time*23)*0.8*sf : 0), body=S.susp.x*0.5+bounce, roll=S.roll.x, pitch=S.pitch.x, droop=Math.min(1,S.airH/60)*ch*0.035, lq=landSq(S.landT,S.landK);
+  P.roll=roll+nmW+(kerbOn?kr*0.0015*Math.sign(S.playerX):0);
+  P.body.dy=(body+droop-S.brakeVis*ch*0.035+clamp(pitch,-1,0)*ch*0.015-lsq*ch-gk*ch+kr*0.5)*mpp;   /* px up -> metres */
+  P.body.pitch=clamp(pitch,-1,1)*0.03+S.brakeVis*0.035-lnose*0.12+lsq*0.3; P.body.roll=0; P.body.sx=(1-lq*0.5); P.body.sy=(1+lq)*(1+lsq*0.3);
+  const wl=clamp(S.wL.x*0.5,-8,8)*mpp, wr=clamp(S.wR.x*0.5,-8,8)*mpp; for (let i=0;i<meta.wheels.length && i<10;i++){ const wd=meta.wheels[i]; P.wheels.dy[i]=(wd.x<0?wl:wr)+((S.playerX>0)===(wd.x>0)?kr*mpp:0); }
+  P.wheels.spin=g.spin; P.wheels.steer=clamp(S.steer.x*0.45,-0.5,0.5);
+  const hs=1/(1+S.airH/450); P.shadowDy=S.airH*k1*mpp; P.shadowA=0.6*hs*hs*(1-0.4*pal.night);
+  const nt=Math.max(pal.night,S.tunnelK*0.7); P.lights.run=nt*0.6; P.lights.brake=S.brakeVis; P.lights.indL=0; P.lights.indR=0; P.lights.head=0;
+  P.blur=clamp((sf-0.05)/0.07,0,1); P.alpha=1; P.clipY=null;
+  const cell=NR_GL.render(inst,P); if (!cell) return; cell.gy=M.b*cx+M.d*Yb+M.f; cell.gx=M.a*cx+M.c*Yb+M.e; cell.carW=cw; cell.M=M; cell.cw=cw; cell.ch=ch; cell.cx=cx; cell.Yb=Yb; cell.baseY=baseY; cell.baseY0=baseY0; GLC.pcell=cell; }
+/* screen point (CSS, in the current canvas transform) of a car-space point of the instance last rendered */
+const GLA=[0,0];
+function glAnchor(inst,p,out){ const e=inst.carM; const P=GLC.P; const X=e[0]*p[0]+e[4]*p[1]+e[8]*p[2]+e[12], Y=e[1]*p[0]+e[5]*p[1]+e[9]*p[2]+e[13], Z=e[2]*p[0]+e[6]*p[1]+e[10]*p[2]+e[14]; out[0]=P.w/2+inst.offX+(P.w/2)*P.CAMD*X/Z; out[1]=P.h/2+P.HOR+inst.offY-(P.h/2)*P.CAMD*Y/Z; return out; }
+/* virtual chase camera per car: the 2D world puts the camera 3 m above and 3 m behind our car, a true perspective from there shows mostly roof and a
+   hugely magnified tail. Each car is instead drawn as seen from at least 8 m away and at most 16 degrees above (what the old photographed sprites
+   used), the same lateral angle, scaled so its apparent size is unchanged, and shifted so its rear-axle ground point lands exactly on the road point. */
+function glVirtual(P,xr,yr,czr,upm){ const Zv=Math.max(czr,8*upm), s=Zv/czr; const a=Math.atan2(-yr,czr), av=Math.min(a,0.28); const Yv=-Zv*Math.tan(av);
+  P.pos[0]=xr*s; P.pos[1]=Yv; P.pos[2]=Zv; P.upm=upm*s; const ky=(P.h/2)*P.CAMD; P.offX=0; P.offY=-ky*(yr/czr-Yv/Zv); }
+/* a cell copied with the impact squash / yaw of the struck car (the same motion the sprite path used) */
+function impBlitCell(cell){ const I=S.imp, k=I.t, on=k<0.03?k/0.03:1; const sq=(I.kind?0.02:0.03+0.1*I.sev)*Math.cos(k*30)*Math.exp(-k*8)*on, yaw=(I.kind?0.05:0.07)*I.side*Math.sin(k*24)*Math.exp(-k*6), lift=k<0.2?Math.sin(Math.PI*k/0.2)*cell.dh*0.05*I.sev:0;
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.translate(cell.dx+cell.dw/2,cell.dy+cell.dh-lift); ctx.rotate(yaw); ctx.scale(1+sq,1-sq); ctx.drawImage(NR_GL.canvas(),cell.x,cell.y,cell.w,cell.h,-cell.dw/2,-cell.dh,cell.dw,cell.dh); ctx.restore(); }
+function glReady(){ const st=NR_GL.G; let n=0,t=0; for (const k in st.models){ n++; } t=n+Object.keys(st.pending).length; return {models:n, total:t, pending:Object.keys(st.pending).length}; }
 // ============================================================ update
 function update(dt){
   S.time += dt;
@@ -2044,6 +2093,7 @@ function render(){
   ctx.save();
   const shk=camShake(sf); let gkc=0; if (S.gkT<0.3 && !reducedMotion()){ sample(KA.gearKick,S.gkT,KS); gkc=KS[1]*h/800; } ctx.translate(w/2+S.imp.shx+shk.x, h/2+sy+S.imp.shy+shk.y+gkc); if (CP.roll) ctx.rotate(CP.roll); let zm=(S.zoom.x+0.02)*(1+Math.abs(CP.roll)*1.9); if (S.photo) zm*=1+Math.sin(S.photoT*0.8)*0.02; ctx.scale(zm,zm); ctx.translate(-w/2,-h/2);
   if (!ck){ const zc=1+S.close.x*0.09; if (zc>1.0004){ const py=h-bottomPad()-playerDestW()*0.3; ctx.translate(w/2,py); ctx.scale(zc,zc); ctx.translate(-w/2,-py); } }
+  glPrepass(w,h,base,sf,ck);   /* every visible car rendered in 3D into its cell with this frame's projection; copied into place below */
   // --- background
   { const BG=A.bg[pal.bgA]; ctx.drawImage(BG.sky,0,0,16,256,0,0,w,h); if (pal.bgB!==pal.bgA && pal.bgF>0.004){ ctx.globalAlpha=pal.bgF; ctx.drawImage(A.bg[pal.bgB].sky,0,0,16,256,0,0,w,h); ctx.globalAlpha=1; } }
   if (pal.stars>0.01){ ctx.globalAlpha=pal.stars; ctx.drawImage(A.stars,0,0); ctx.globalAlpha=1; }
@@ -2454,53 +2504,35 @@ function groundTex(seg,n,y1,y2){ if (!WD.ground || GQ<0.55 || n>(GQ<0.8?40:70) |
    its depth, its own lane change), cross-faded day -> night with the palette; lenses light from the overlay, glows sit on the anchors */
 const C3T={yaw:0};
 const RGL={}; function rivalGlow(car){ return RGL[car.col]||(RGL[car.col]=radial(128,32,'rgba('+hex(car.col).join(',')+',.9)','rgba('+hex(car.col).join(',')+',0)')); }
-const RP={x:0,y:0,sc:0}, C3RZ={hatch:-1.3,van:-1.6,truck:-3.0,bike:-0.7,comet:-1.36,titan:-1.42,arrow:-1.4};
+const RP={x:0,y:0,sc:0,clip:0};
 /* screen point of the road at world depth z and lateral offset (road half-widths), from this frame's projection; false if not on screen */
 function roadPt(z,offset,w,o){ z=((z%trackLen)+trackLen)%trackLen; const seg=findSeg(z), p1=seg.p1, p2=seg.p2; if (!(p1.cz>CAMD*20) || !(p2.cz>p1.cz)) return false; const pct=(z%SEG)/SEG, cz=p1.cz+(p2.cz-p1.cz)*pct, sc=CAMD/cz, q=(p2.sc===p1.sc)?0:(sc-p1.sc)/(p2.sc-p1.sc);
   o.sc=sc; o.x=p1.sx+(p2.sx-p1.sx)*q+sc*offset*ROADW*w/2; o.y=p1.sy+(p2.sy-p1.sy)*q; o.clip=seg.clip; return true; }
-/* distant cars draw from half / quarter size copies: less texture work and no shimmer */
-function c3Lod(fr,kk){ const d=kk*DPR; return d<0.24&&fr.l2?fr.l2:d<0.48&&fr.l1?fr.l1:fr.cv; }
-function drawCar3D(set,car,worldW,sc,sx,sy,offset,clipY,w,alpha,n){
-  const kk=sc*w/2*(worldW/set.Wd)/set.pm; const carW=set.Wd*set.pm*kk; if (carW<1.2) return true;
-  const X=sx+sc*offset*ROADW*w/2, Y=sy;
-  let yaw=0; if (carW>3){ const seg=findSeg(car.z), p1=seg.p1, p2=seg.p2; const lat=(X-w/2)/(sc*w/2), cz=CAMD/sc; const view=Math.atan2(lat,cz)*57.3;
-    const head=(p2.sc>0&&p1.sc>0)?Math.atan(((p2.sx-w/2)/(p2.sc*w/2)-(p1.sx-w/2)/(p1.sc*w/2))/SEG)*57.3:0;
-    const dt=S.time-(car._pt||0); if (dt>0.001){ const v=(car.offset-(car._po==null?car.offset:car._po))*ROADW/Math.max(1,car.speed*dt); car._lv=lerp(car._lv||0,clamp(Math.atan(v)*57.3,-12,12),clamp(dt*8,0,1)); car._po=car.offset; car._pt=S.time; }
-    yaw=clamp(-view+head+(car._lv||0),-40,40); }
-  const yi=c3Yi(set,yaw), nt=Math.max(pal.night,S.tunnelK*0.7), f0=c3Frame(set,0,yi); if (!f0) return false; const fN=nt>0.01?set.fr[2]&&set.fr[2][yi]:null; const aS=nt<0.999?pal.sunset:0, fS=aS>0.004?set.fr[1]&&set.fr[1][yi]:null;
-  /* stand the car on the road at its rear axle: the frame's rear-axle contact point goes to the road's screen point at that depth (the
-     sprite's own perspective then never pushes the tyres into the tarmac or lifts them off it, near or far, on crests or in dips) */
-  let rxX=X, rxY=Y; { const upm=worldW/set.Wd, zr=f0.an.rax?(-(f0.oy-f0.an.rax[1])*0):0; const RZ=set.rz!=null?set.rz:(set.rz=C3RZ[set.model]||-1.35); if (roadPt(car.z+RZ*upm,offset,w,RP)){ rxX=RP.x; rxY=RP.y; clipY=RP.clip; } else { rxX=X+(f0.an.rax[0]-f0.ox)*kk; rxY=Y+(f0.an.rax[1]-f0.oy)*kk; } }
-  const dx=rxX-f0.an.rax[0]*kk, dy=rxY-f0.an.rax[1]*kk, dw=f0.w*kk, dh=f0.h*kk; const clipH=clipY?Math.max(0,dy+dh-clipY):0; if (clipH>=dh) return true;
-  const L0=c3Lod(f0,kk);
-  const an=f0.an, AX=(p)=>dx+p[0]*kk, AY=(p)=>dy+p[1]*kk;
+const ZERO3=[0,0,0];
+/* a car from its live 3D cell (rendered in glPrepass): the cell is copied 1:1 in device pixels at its place in the painter's order;
+   reflections, glows, flames, spray and name tags hang off the model's own anchor points projected with the same matrix */
+function drawCar3D(car,worldW,sc,sx,sy,offset,clipY,w,alpha,n){ const cell=car._cell, inst=car._inst; if (!cell || !inst) return false; const an=inst.model.meta.anchors; const carW=cell.carW; const X=sx+sc*offset*ROADW*w/2, Y=sy; const nt=Math.max(pal.night,S.tunnelK*0.7);
+  glAnchor(inst,ZERO3,GLA); const rxX=GLA[0], rxY=GLA[1];   /* the road under the rear axle */
   // wet road: the car mirrored in the water film, and its tail lights streaking down
-  if (S.wet>0.1 && n<70 && clipH<=0 && carW>10){ ctx.save(); ctx.globalAlpha=alpha*S.wet*0.16; ctx.translate(0,Y*2); ctx.scale(1,-1); ctx.drawImage((fN&&nt>0.5?fN:f0).cv,dx,Y-(Y-dy)*0.55-(f0.h*kk-(Y-dy))*0.55,dw,dh*0.55); ctx.restore();
-    ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=alpha*S.wet*(0.18+0.3*Math.max(nt,car.brake?1:0)); const RF=reflImg(), rw=carW*0.12, rh=carW*0.55; for (const t of an.tail) ctx.drawImage(RF,AX(t)-rw/2,Y,rw,rh); ctx.globalCompositeOperation='source-over'; }
+  if (S.wet>0.1 && n<70 && !cell.clipped && carW>10){ NR_GL.blit(ctx,cell,alpha*S.wet*0.16,cell.gy,0.55);
+    ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=alpha*S.wet*(0.18+0.3*Math.max(nt,car.brake?1:0)); const RF=reflImg(), rw=carW*0.12, rh=carW*0.55; for (const t of an.tail){ glAnchor(inst,t,GLA); ctx.drawImage(RF,GLA[0]-rw/2,rxY,rw,rh); } ctx.globalCompositeOperation='source-over'; }
   if (n<120 && nt>0.3 && carW>10){ ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=alpha*0.3*nt; ctx.drawImage(fx2().hg,X-carW*0.8,Y-carW*0.45,carW*1.6,carW*0.6); ctx.globalCompositeOperation='source-over'; }   /* its headlights on the road ahead */
-  if (car.nitroT>0 && carW>12){ ctx.globalAlpha=alpha*0.9; const fw=carW*0.1, fh=carW*0.42; for (const e of an.exhaust) ctx.drawImage(A.flame,AX(e)-fw/2,AY(e)-fw*0.2,fw,fh); }
+  if (car.nitroT>0 && carW>12){ ctx.globalAlpha=alpha*0.9; const fw=carW*0.1, fh=carW*0.42; for (const e of an.exhaust){ glAnchor(inst,e,GLA); ctx.drawImage(A.flame,GLA[0]-fw/2,GLA[1]-fw*0.2,fw,fh); } }
   if (car.rival!=null && carW>4){ const G=rivalGlow(car); const gw=carW*1.7, gh=carW*0.42; ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=alpha*(0.5+0.4*Math.max(pal.night,S.wet)); ctx.drawImage(G,rxX-gw/2,rxY-gh*0.6,gw,gh); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=alpha; }   /* rivals: a glow of their colour on the road under them */
-  const struck=S.imp.car===car; if (struck) impCapture(dx,dy,dw,dh,car);
-  // suspension: a small bob over the road texture and roll in corners (plus the rivals' lean when they attack)
-  const bob=carW>14?-Math.abs(Math.sin(S.time*(8+(car.z%7))+car.z*0.013))*carW*0.003*clamp(car.speed/MAX_SPEED*1.5,0,1):0, roll=clamp(-(car._lv||0)*0.0015+(car.lean||0)*0.3,-0.022,0.022);
+  const struck=S.imp.car===car; const Mi=GLC.Minv; const dx=Mi.a*cell.dx+Mi.c*cell.dy+Mi.e, dy=Mi.b*cell.dx+Mi.d*cell.dy+Mi.f, dw=cell.dw*Mi.a, dh=cell.dh*Mi.d; if (struck) impCapture(dx,dy,dw,dh,car);
+  if (struck && S.imp.t<IMP_T && !cell.clipped) impBlitCell(cell); else NR_GL.blit(ctx,cell,1);
   ctx.globalAlpha=alpha;
-  if (clipH>0){ if (!(fS && aS>=0.999)) c3Draw(f0,rxX,rxY+bob,kk,f0.an.rax[0],f0.an.rax[1],alpha,clipY); if (fS) c3Draw(fS,rxX,rxY+bob,kk,fS.an.rax[0],fS.an.rax[1],alpha*Math.min(1,aS),clipY); if (fN) c3Draw(fN,rxX,rxY+bob,kk,fN.an.rax[0],fN.an.rax[1],alpha*Math.min(1,nt),clipY); }
-  else if (struck && S.imp.t<IMP_T) impDrawCar(f0.cv,dx,dy,dw,dh);
-  else { const rot=carW>16&&Math.abs(roll)>0.002; if (rot){ ctx.save(); ctx.translate(rxX,rxY); ctx.rotate(roll); ctx.translate(-rxX,-rxY); }
-    if (!(fN && nt>=0.999)){ if (!(fS && aS>=0.999)) ctx.drawImage(L0,dx,dy+bob,dw,dh); if (fS){ ctx.globalAlpha=alpha*Math.min(1,aS); ctx.drawImage(c3Lod(fS,kk),rxX-fS.an.rax[0]*kk,rxY-fS.an.rax[1]*kk+bob,fS.w*kk,fS.h*kk); ctx.globalAlpha=alpha; } } if (fN){ ctx.globalAlpha=alpha*Math.min(1,nt); ctx.drawImage(c3Lod(fN,kk),rxX-fN.an.rax[0]*kk,rxY-fN.an.rax[1]*kk+bob,fN.w*kk,fN.h*kk); ctx.globalAlpha=alpha; }
-    if (car.brake && f0.emis){ ctx.globalCompositeOperation='lighter'; ctx.drawImage(f0.emis,dx,dy+bob,dw,dh); ctx.globalCompositeOperation='source-over'; }
-    if (rot) ctx.restore(); }
   // glows on the lamps: tail lights at night / braking, blinking indicators before a lane change
-  if (n<110 && carW>8 && clipH<dh*0.5){ const glow=Math.max(nt,car.brake?0.9:0); const F=fx2(); ctx.globalCompositeOperation='lighter';
-    if (glow>0.2){ const gs=carW*(car.brake?0.42:0.3); ctx.globalAlpha=alpha*glow*(car.brake?0.9:0.55); for (const t of an.tail) ctx.drawImage(F.tg,AX(t)-gs/2,AY(t)-gs/2+bob,gs,gs); }
-    if (car.ind && Math.sin(S.time*14)>0){ const p=an.ind[car.ind>0?an.ind.length-1:0], gs=carW*0.28; ctx.globalAlpha=alpha; ctx.drawImage(A.glowAmber,AX(p)-gs/2,AY(p)-gs/2+bob,gs,gs); }
+  if (n<110 && carW>8 && !cell.clipped){ const glow=Math.max(nt,car.brake?0.9:0); const F=fx2(); ctx.globalCompositeOperation='lighter';
+    if (glow>0.2){ const gs=carW*(car.brake?0.42:0.3); ctx.globalAlpha=alpha*glow*(car.brake?0.9:0.55); for (const t of an.tail){ glAnchor(inst,t,GLA); ctx.drawImage(F.tg,GLA[0]-gs/2,GLA[1]-gs/2,gs,gs); } }
+    if (car.ind && Math.sin(S.time*14)>0){ const p=an.ind[car.ind>0?an.ind.length-1:0], gs=carW*0.28; glAnchor(inst,p,GLA); ctx.globalAlpha=alpha; ctx.drawImage(A.glowAmber,GLA[0]-gs/2,GLA[1]-gs/2,gs,gs); }
     ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=alpha; }
-  if (S.wet>0.1 && n<70 && clipH<=0 && carW>10 && car.speed>MAX_SPEED*0.1){ const pf=1+Math.sin(S.time*17+car.z*0.01)*0.08; ctx.globalAlpha=alpha*S.wet*0.55*clamp(1.15-carW/(w*0.35),0.15,1); ctx.drawImage(A.spray,X-carW*0.7*pf,Y-carW*0.45*pf,carW*1.4*pf,carW*0.5*pf); ctx.globalAlpha=alpha; }
-  if (car.duo!=null && clipH<dh*0.6){ DTAG.on=true; DTAG.x=X; DTAG.y=dy; DTAG.a=clamp((150-n)/30,0,1); DTAG.i=car.duo; DTAG.s=clamp(carW/120,0.7,1.3); }
-  if ((car.rival!=null || car.net!=null) && n<170 && carW>5 && clipH<dh*0.5 && tagN<TAGS.length){ const T=TAGS[tagN++]; T.car=car; T.x=dx+an.roof[0]*kk; T.y=dy+an.roof[1]*kk-carW*0.06; T.a=clamp((170-n)/40,0,1); }
+  if (S.wet>0.1 && n<70 && !cell.clipped && carW>10 && car.speed>MAX_SPEED*0.1){ const pf=1+Math.sin(S.time*17+car.z*0.01)*0.08; ctx.globalAlpha=alpha*S.wet*0.55*clamp(1.15-carW/(w*0.35),0.15,1); ctx.drawImage(A.spray,X-carW*0.7*pf,Y-carW*0.45*pf,carW*1.4*pf,carW*0.5*pf); ctx.globalAlpha=alpha; }
+  if (car.duo!=null && !cell.clipped){ glAnchor(inst,an.roof,GLA); DTAG.on=true; DTAG.x=X; DTAG.y=GLA[1]; DTAG.a=clamp((150-n)/30,0,1); DTAG.i=car.duo; DTAG.s=clamp(carW/120,0.7,1.3); }
+  if ((car.rival!=null || car.net!=null) && n<170 && carW>5 && !cell.clipped && tagN<TAGS.length){ const T=TAGS[tagN++]; glAnchor(inst,an.roof,GLA); T.car=car; T.x=GLA[0]; T.y=GLA[1]-carW*0.06; T.a=clamp((170-n)/40,0,1); }
   return true; }
 function drawSprite(img,worldW,sc,sx,sy,offset,clipY,w,alpha,car,n){
-  if (car && car.c3){ const set=c3Set(car.c3); if (set && drawCar3D(set,car,worldW,sc,sx,sy,offset,clipY,w,alpha,n)) return; }
+  if (car && car._cell && drawCar3D(car,worldW,sc,sx,sy,offset,clipY,w,alpha,n)) return;
   const dw=worldW*sc*w/2; if (dw<1.5) return; const dh=dw*img.height/img.width;
   const dx=sx+sc*offset*ROADW*w/2-dw/2, dy=sy-dh;
   const clipH = clipY ? Math.max(0, dy+dh-clipY) : 0;
@@ -2552,61 +2584,30 @@ function drawRain(w,h,sf){
   if (!isCk()) for (const d of DROPS){ if (!d.a || d.dy<0) continue; const g=Math.min(1,d.t/0.25), r=d.r*(0.45+0.55*g), fade=d.t>d.max-0.3?Math.max(0,(d.max-d.t)/0.3):1, sl=clamp((d.t-0.25)*3,0,1);
     ctx.globalAlpha=k*0.7*fade; ctx.fillStyle='#bfe2ff'; if (sl>0) ctx.fillRect(d.x-r*0.3,d.y-r*4.5*sl,r*0.6,r*4.5*sl); ctx.beginPath(); ctx.arc(d.x,d.y,r,0,6.283); ctx.fill(); ctx.globalAlpha=k*0.9*fade; ctx.fillStyle='#ffffff'; ctx.fillRect(d.x-r*0.5,d.y-r*0.55,Math.max(1,r*0.4),Math.max(1,r*0.4)); } ctx.globalAlpha=1;
 }
-/* our car from its 3D set. Frame = yaw from steering, drift and where the camera sits; wheels are separate sprites (spin phase / blur,
-   front pair turned by the steering, each side on its own spring), the body rides on top with roll, squat, dive and the keyed launch. */
-const PW={tod:[0,0,0]};
-function playerTod(){ /* weights of the day / sunset / night frames for this palette step */ const n=pal.night, s=pal.sunset*(1-n); PW.tod[2]=n; PW.tod[1]=s; PW.tod[0]=1-n-s; return PW.tod; }
-function drawPlayer3D(w,h,sf,set){
-  const cw=playerDestW(), ch=cw*150/240; const k1=h/(2*CAM_H), baseY0=h-bottomPad()-ch-h*0.028, baseY=baseY0+(S.camAir.x-S.airH)*k1, hs=1/(1+S.airH/450); const cx=w/2;
-  const kk=cw/(set.Wd*set.pm); const bounce=(sf>0.05? Math.sin(S.time*37)*1.2*sf + Math.sin(S.time*23)*0.8*sf : 0);
-  const body=S.susp.x*0.5+bounce, roll=S.roll.x, pitch=S.pitch.x; const playerSeg=findSeg(S.pos+PLAYER_Z);
-  // yaw: steering turns the nose, a drift swings it into the corner, the camera's sideways offset shows a little of the flank
-  const camYaw=Math.atan2(-(S.camF-S.playerX)*ROADW-CP.ox, PLAYER_Z*CP.k+CP.b+300)*57.3;
-  let dIn=0; if (S.drT<1 && S.drift>0.2){ sample(KA.driftIn,S.drT,KH); dIn=KH[0]*(S.slipDir||1); }
-  const yawD=clamp(S.steer.x*6 + S.driftVis*S.slipDir*15 + dIn + S.wob.x*1.5 + camYaw, -26, 26), yi=c3Yi(set,yawD);
-  let gk=0, gkF=0; if (S.gkT<0.3){ sample(KA.gearKick,S.gkT,KH); gk=KH[0]; gkF=KH[2]; } let nmW=0; if (S.nmT<0.6){ sample(KA.nearMiss,S.nmT,KH); nmW=KH[2]*S.nmSide; }
-  const ax_=Math.abs(S.playerX), kerbOn=ax_>0.86 && ax_<1.15 && S.speed>200 && S.mode==='race'; const KR=NRK.KERB_RUMBLE, kr=kerbOn&&KR?KR[((S.time*30)|0)%KR.length]*0.01*ch*Math.min(1,sf*1.4):0;
-  const T=playerTod(); const f0=c3Frame(set,0,yi); if (!f0) return false; const an=f0.an;
-  const gY=baseY0+ch*0.98; ctx.save(); if (S.cv.k!==1 || S.cv.dx || S.cv.dy){ ctx.translate(cx+S.cv.dx, gY+S.cv.dy); ctx.scale(S.cv.k,S.cv.k); ctx.translate(-cx,-gY); }
-  let lsq=0, lnose=0; if (S.launchT<1.05){ sample(KA.launch,S.launchT,KS); lsq=KS[0]*S.launchK; lnose=KS[1]*S.launchK; }
-  const Yb=baseY+ch*0.98, rx=an.rax[0], ry=an.rax[1];   /* the rear-axle ground point of the frame sits on our spot on the road */
-  const FX=(p)=>cx+(p[0]-rx)*kk, FY=(p)=>Yb+(p[1]-ry)*kk;
+/* our car from its live 3D cell (glPlayer rendered it with the chase camera's placement; roll, dive, squat, launch and the keyed moments are in the
+   model's pose). Here: the wet-road mirror, underglow, nitro flames and backfire at the real tail pipes, brake glows, wear, heat haze. */
+function drawPlayer3D(w,h,sf){ const cell=GLC.pcell, inst=GLC.pinst; if (!cell || !inst) return false; const an=inst.model.meta.anchors; const cw=cell.cw, ch=cell.ch, cx=cell.cx, Yb=cell.Yb, baseY=cell.baseY, baseY0=cell.baseY0, gY=baseY0+ch*0.98;
+  ctx.save(); if (S.cv.k!==1 || S.cv.dx || S.cv.dy){ ctx.translate(cx+S.cv.dx, gY+S.cv.dy); ctx.scale(S.cv.k,S.cv.k); ctx.translate(-cx,-gY); }
   // wet road: the whole car mirrored in the water film
-  if (S.wet>0.15){ ctx.save(); ctx.globalAlpha=S.wet*0.2; ctx.translate(0,Yb); ctx.scale(1,-0.5); ctx.drawImage(f0.cv,cx-rx*kk,-ry*kk,f0.w*kk,f0.h*kk); ctx.restore(); ctx.globalAlpha=1; }
+  if (S.wet>0.15) NR_GL.blit(ctx,cell,S.wet*0.2,cell.gy,0.5);
   // neon underglow (garage cosmetic)
   if (!S.duo && meta.cos && meta.cos.glow && meta.cos.glowOn && A.underglow){ ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.3+0.5*Math.max(pal.night,S.tunnelK); ctx.drawImage(A.underglow,cx-cw*0.62,baseY+ch*0.74,cw*1.24,ch*0.46); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; }
   // nitro flames from the real tail pipes (keyed ignition, then the hand-keyed flicker loop)
   if (S.nitroVis>0.02){ let fl=S.nitroOn?1:S.nitroVis*0.4, L=1, Wd=1, core=0, ring=0; if (S.nitroOn){ if (S.nitIgn<0.4){ sample(KA.nitro,S.nitIgn,KN); L=KN[0]; Wd=KN[1]; core=KN[2]; ring=KN[4]; } else { L=NITRO_FLICK[((S.nitIgn*24)|0)%8]; Wd=1/Math.sqrt(L); core=0.2; } }
     ctx.globalAlpha=Math.min(1,S.nitroVis*1.4); const ne=an.exhaust.length;
-    for (const e of an.exhaust){ const fw=cw*(ne>2?0.11:0.15)*fl*Wd, fh=ch*(0.5+1.3*fl)*L, px=FX(e)+S.steer.x*4, py=FY(e)-body-fw*0.25; ctx.drawImage(A.flame, px-fw/2, py, fw, fh);
+    for (const e of an.exhaust){ glAnchor(inst,e,GLA); const fw=cw*(ne>2?0.11:0.15)*fl*Wd, fh=ch*(0.5+1.3*fl)*L, px=GLA[0]+S.steer.x*4, py=GLA[1]-fw*0.25; ctx.drawImage(A.flame, px-fw/2, py, fw, fh);
       if (core>0.05){ ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=core; ctx.drawImage(A.flame, px-fw*0.3, py, fw*0.6, fh*0.55); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=Math.min(1,S.nitroVis*1.4); }
       if (ring>0.02){ ctx.strokeStyle='rgba(180,250,255,'+ring.toFixed(3)+')'; ctx.lineWidth=Math.max(1,cw*0.008); const rr_=cw*0.05*(1.6-ring); ctx.beginPath(); ctx.ellipse(px,py+ch*0.03,rr_,rr_*0.45,0,0,6.283); ctx.stroke(); } }
     ctx.globalAlpha=1; }
-  // wheels: own sprites, spin phase from the distance driven (blur above walking pace), front pair turned by the steering
-  if (set.wheels){ const td=T[2]>0.5?2:0, WT=set.wh[td]||set.wh[0]; const spin=S.speed/MAX_SPEED; const v=spin>0.08?3:((S.wheelPhase*3)|0)%3; const wl=clamp(S.wL.x*0.5,-8,8), wr=clamp(S.wR.x*0.5,-8,8);
-    const yiF=c3Yi(set,yawD+S.steer.x*16);
-    for (let wi=0;wi<an.axle.length;wi++){ const fr=an.front[wi]; const row=WT&&WT[fr?yiF:yi]; const ws=row&&row[wi*4+v]; if (!ws) continue; const p=an.axle[wi]; const sd=an.side[wi]<0?wl:wr;
-      ctx.drawImage(ws.cv, FX(p)-ws.wc[0]*kk, FY(p)-ws.wc[1]*kk+bounce*0.3-sd-((S.playerX>0)===(an.side[wi]>0)?kr:0), ws.w*kk, ws.h*kk); } }
-  // body: roll into corners, nose down on braking, squat on launch; day / sunset / night frames cross-faded with the palette
-  const droop=Math.min(1,S.airH/60)*ch*0.035, lq=landSq(S.landT,S.landK);
-  ctx.save(); ctx.translate(cx, Yb); ctx.translate(0, -body - droop + S.brakeVis*ch*0.035 - clamp(pitch,-1,0)*ch*0.015 + lsq*ch + gk*ch - kr*0.5); ctx.rotate(roll+nmW+(kerbOn?kr*0.0015*Math.sign(S.playerX):0)); ctx.scale((1+Math.abs(roll)*0.3)*(1-lq*0.5)*(1+lsq*0.5), (1+pitch*0.02)*(1+lq)*(1-lnose*0.9)); ctx.translate(0, pitch*ch*0.02);
-  const bx=-rx*kk, by=-ry*kk, bw=f0.w*kk, bh=f0.h*kk; let drawn=false;
-  { const a1=(T[0]+T[1])>0?T[1]/(T[0]+T[1]):0, a2=T[2], f1=set.fr[1]&&set.fr[1][yi], f2=set.fr[2]&&set.fr[2][yi];
-    if (!(f2 && a2>=0.999)){ if (!(f1 && a1>=0.999)) ctx.drawImage(f0.cv,bx,by,bw,bh); if (f1 && a1>0.004){ ctx.globalAlpha=Math.min(1,a1); ctx.drawImage(f1.cv,bx,by,bw,bh); } }
-    if (f2 && a2>0.004){ ctx.globalAlpha=Math.min(1,a2); ctx.drawImage(f2.cv,bx,by,bw,bh); } }
-  ctx.globalAlpha=1;
-  if (S.brakeVis>0.02 && f0.emis){ ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=Math.min(1,S.brakeVis); ctx.drawImage(f0.emis,bx,by,bw,bh); ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over'; }
-  { const glow=Math.max(pal.night*0.6,S.brakeVis); if (glow>0.05){ const F=fx2(), gs=cw*(0.18+0.12*S.brakeVis); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=glow*0.8; for (const t of an.tail) ctx.drawImage(F.tg,(t[0]-rx)*kk-gs/2,(t[1]-ry)*kk-gs/2,gs,gs); ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over'; } }
+  NR_GL.blit(ctx,cell,1);
+  { const glow=Math.max(pal.night*0.6,S.brakeVis); if (glow>0.05){ const F=fx2(), gs=cw*(0.18+0.12*S.brakeVis); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=glow*0.8; for (const t of an.tail){ glAnchor(inst,t,GLA); ctx.drawImage(F.tg,GLA[0]-gs/2,GLA[1]-gs/2,gs,gs); } ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over'; } }
   // wear: scuffs and dents over the rear fascia
-  if (S.dmg>0){ const x0=(an.tail[0][0]-rx)*kk-cw*0.08, x1=(an.tail[an.tail.length-1][0]-rx)*kk+cw*0.08, y0=(an.roof[1]-ry)*kk, y1=0; ctx.globalAlpha=Math.min(1,S.dmg/3*0.95); ctx.drawImage(A.scratch, x0, y0+(y1-y0)*0.1, x1-x0, (y1-y0)*0.95); ctx.globalAlpha=1; if (S.dmg>=2) ctx.drawImage(fx2().dent, x0, y0+(y1-y0)*0.1, x1-x0, (y1-y0)*0.95); }
-  { const bs=Math.max(bfScale(S.bfT),gkF); if (bs>0){ ctx.globalCompositeOperation='lighter'; for (const e of an.exhaust){ const sz=cw*0.12*bs; ctx.drawImage(A.backfire,(e[0]-rx)*kk-sz/2,(e[1]-ry)*kk-sz*0.2,sz,sz*1.4); } ctx.globalCompositeOperation='source-over'; } }
-  // tunnel lights sweeping over the body: the car itself drawn again, additive, inside a moving band
-  if (S.tunnelK>0.05){ const ph=((S.pos/SEG)%6)/6; const top=(an.roof[1]-ry)*kk, by2=top+(-top)*ph*1.1-ch*0.1, bh2=ch*0.16; ctx.save(); ctx.beginPath(); ctx.rect(bx,by2,bw,bh2); ctx.clip(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.4*S.tunnelK; ctx.drawImage(f0.cv,bx,by,bw,bh); ctx.restore(); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; }
-  ctx.restore();
-  if (sf>0.55 && !reducedMotion() && !S.photo && an.exhaust.length){ const e0=an.exhaust[0], e1=an.exhaust[an.exhaust.length-1]; const x0=Math.min(FX(e0),FX(e1))-cw*0.08, x1=Math.max(FX(e0),FX(e1))+cw*0.08; hazeDraw(x0, FY(e0)-body+cw*0.02, x1-x0, ch*0.3, clamp((sf-0.55)*2.5,0,1)); }
+  if (S.dmg>0){ glAnchor(inst,an.tail[0],GLA); const x0=GLA[0]-cw*0.08; glAnchor(inst,an.tail[an.tail.length-1],GLA); const x1=GLA[0]+cw*0.08; glAnchor(inst,an.roof,GLA); const y0=GLA[1], y1=Yb; ctx.globalAlpha=Math.min(1,S.dmg/3*0.95); ctx.drawImage(A.scratch, x0, y0+(y1-y0)*0.1, x1-x0, (y1-y0)*0.95); ctx.globalAlpha=1; if (S.dmg>=2) ctx.drawImage(fx2().dent, x0, y0+(y1-y0)*0.1, x1-x0, (y1-y0)*0.95); }
+  { let gkF=0; if (S.gkT<0.3){ sample(KA.gearKick,S.gkT,KH); gkF=KH[2]; } const bs=Math.max(bfScale(S.bfT),gkF); if (bs>0){ ctx.globalCompositeOperation='lighter'; for (const e of an.exhaust){ glAnchor(inst,e,GLA); const sz=cw*0.12*bs; ctx.drawImage(A.backfire,GLA[0]-sz/2,GLA[1]-sz*0.2,sz,sz*1.4); } ctx.globalCompositeOperation='source-over'; } }
+  if (sf>0.55 && !reducedMotion() && !S.photo && an.exhaust.length){ glAnchor(inst,an.exhaust[0],GLA); const ex0=GLA[0], ey=GLA[1]; glAnchor(inst,an.exhaust[an.exhaust.length-1],GLA); const x0=Math.min(ex0,GLA[0])-cw*0.08, x1=Math.max(ex0,GLA[0])+cw*0.08; hazeDraw(x0, ey+cw*0.02, x1-x0, ch*0.3, clamp((sf-0.55)*2.5,0,1)); }
   ctx.restore(); return true; }
 function drawPlayer(w,h,sf){
-  { const set=c3Set('p'+CARI); if (set && drawPlayer3D(w,h,sf,set)) return; }
+  if (GLC.pcell && drawPlayer3D(w,h,sf)) return;
   const cw=playerDestW(), ch=cw*150/240; const k1=h/(2*CAM_H), baseY0=h-bottomPad()-ch-h*0.028, baseY=baseY0+(S.camAir.x-S.airH)*k1, shY=baseY0+S.camAir.x*k1, hs=1/(1+S.airH/450); const cx=w/2;   /* airtime: the car lifts, its shadow stays on the road */
   const res = cw*DPR>270?2:1, set = A.playerSets[CARI][res];
   const bounce = (sf>0.05? Math.sin(S.time*37)*1.2*sf + Math.sin(S.time*23)*0.8*sf : 0);
@@ -2828,12 +2829,11 @@ const UI={more:document.getElementById('more'), pb:document.getElementById('paus
 function syncUI(){
   const want=false; if (UI.moreOn!==want){ UI.moreOn=want; UI.more.style.display=want?'block':'none'; }
   const inGame=(S.mode==='race'||S.mode==='countdown')&&!S.paused&&!S.duo; if (UI.pbOn!==inGame){ UI.pbOn=inGame; UI.pb.classList.toggle('on',inGame); }
-  if (C3.later && S.mode!=='race' && S.mode!=='countdown') c3Plan();
   { const st=S.mode==='menu'; if (st!==UI.ttOn){ UI.ttOn=st; } if (st || shown.garage) ttTick(); }
 }
 function resize(){
   { const sp=document.getElementById('safe'); if (sp){ const cs=getComputedStyle(sp); SAFE.t=parseFloat(cs.paddingTop)||0; SAFE.r=parseFloat(cs.paddingRight)||0; SAFE.b=parseFloat(cs.paddingBottom)||0; SAFE.l=parseFloat(cs.paddingLeft)||0; } }
-  DPR=Math.min(2,Arcade.gfx.dpr(window.innerWidth,window.innerHeight)); W=window.innerWidth; H=window.innerHeight; { const cap=4.6e6; if (W*H*DPR*DPR>cap) DPR=Math.sqrt(cap/(W*H)); }   /* pixel budget: a 120 Hz retina laptop gets ~1.7x, sharp enough with the cars rendered at device size, and the fill rate holds */ canvas.width=Math.round(W*DPR); canvas.height=Math.round(H*DPR);
+  DPR=Math.min(2,Arcade.gfx.dpr(window.innerWidth,window.innerHeight)); W=window.innerWidth; H=window.innerHeight; { const cap=4.6e6; if (W*H*DPR*DPR>cap) DPR=Math.sqrt(cap/(W*H)); }   /* pixel budget: a 120 Hz retina laptop gets ~1.7x, sharp enough with the cars rendered at device size, and the fill rate holds */ canvas.width=Math.round(W*DPR); canvas.height=Math.round(H*DPR); if (glInit()) NR_GL.setSize(canvas.width,Math.round(canvas.height*2));   /* cells for every visible car: two screens tall covers a near car passing beside us plus the field */
   const pt=pal.step>=0?pal.step/PAL_STEPS:0; CKC.clear(); buildSized(); setFonts(); setPalette(pt);
 }
 // input
@@ -2886,11 +2886,8 @@ function makeCarBtn(i,onClick){ const c=CARS[i], e=effCar(i); const bar=(lbl,v)=
 function selectCar(i){ if (!meta.cars[i]) return false; opts.car=i; CARI=i; CAR=effCar(i); rebuildPlayer(i); saveOpts(); syncPickers(); sfx.pick(); return true; }
 // ============================================================ turntable (menu + garage): the car on a lit disc, 72 pre-rendered yaw frames from the 3D model
 const TT={view:0, cv:null, g:null, mode:'start', host:null, info:null, cw:0, ch:0, drag:null, spin:0, floor:null, spot:null, rfl:null, lastT:0};
-function c3TT(i){ const key='tt'+i; const car=effCar(i), o={col:car.col,acc:car.acc,plate:car.plate||'NEON',lights:{run:0.6,head:1}}; const pm=Math.round(Math.min(560,(TT.cw||420))*0.82*Math.min(2,window.devicePixelRatio||1)/4.6); const model=PMODEL[car.style|0]||'comet';
-  const sig=model+'|'+pm+'|'+JSON.stringify(o); const old=C3.S[key]; if (old && old.sig===sig) return old; const yaws=[]; for (let a=0;a<360;a+=5) yaws.push(a);
-  const set={key,kind:'tt',model,yaws,pm,fr:[],wh:[],ready:false,n:0,gen:++C3.gen,sig,mid:0,Wd:2.0}; C3.S[key]=set; const jobs=[];
-  for (const step of [6,3,1]) for (let k=0;k<72;k+=step){ if (jobs.some(j=>j.yi===k)) continue; jobs.push({key,slot:'body',tod:0,yi:k,gen:set.gen,job:{model,opts:o,yaw:yaws[k],pitch:17,persp:8,pm,ss:(window.devicePixelRatio||1)>=2?1:2,tod:0,layer:'baked',runIn:true,blur:false}}); }
-  C3.q=jobs.concat(C3.q); c3Workers(); c3Pump(); return set; }
+function glTT(i){ if (!glInit()) return null; const car=effCar(i), name=PMODEL[car.style|0]; let mk=glModelKey(name); if (!NR_GL.ready(mk)){ glModel(name,true); mk=NR_GL.anyModel(name); if (!mk) return null; } return NR_GL.instance('tt'+i,mk,{col:car.col,acc:car.acc,plate:car.plate||'NEON'}); }
+const TTP={w:0,h:0,CAMD:2.4,HOR:0,M:{a:1,b:0,c:0,d:1,e:0,f:0},pos:[0,0,8],upm:1,yaw:0,pitch:0.12,roll:0,body:null,wheels:{spin:0,steer:0,dy:null},shadowDy:0,shadowA:0.6,lights:{run:0.6,brake:0,indL:0,indR:0,head:1},blur:0,alpha:1,clipY:null,devW:0,devH:0};
 function ttMount(host,mode){ TT.mode=mode; if (!TT.cv){ TT.cv=document.createElement('canvas'); TT.g=TT.cv.getContext('2d'); TT.info=document.createElement('div'); TT.info.className='ttInfo';
     TT.cv.addEventListener('pointerdown',e=>{ initAudio(); const r=TT.cv.getBoundingClientRect(); TT.drag={x:e.clientX,y0:TT.spin,moved:false,side:(e.clientX-r.left)/r.width}; TT.cv.setPointerCapture&&TT.cv.setPointerCapture(e.pointerId); });
     TT.cv.addEventListener('pointermove',e=>{ if (!TT.drag) return; const dx=e.clientX-TT.drag.x; if (Math.abs(dx)>6) TT.drag.moved=true; TT.spin=TT.drag.y0-dx*0.6; });
@@ -2907,19 +2904,18 @@ function ttStep(d){ const n=CARS.length; TT.view=(TT.view+d+n)%n; sfx.pick(); if
 function ttInfo(){ if (!TT.info) return; const i=TT.view, c=CARS[i], e=effCar(i); const bar=(lbl,v)=>'<span class="st"><i>'+lbl+'</i><em><u style="width:'+Math.round(clamp(v,0.08,1)*100)+'%"></u></em></span>';
   const own=!!meta.cars[i]; TT.info.innerHTML='<b>'+c.name+'</b>'+bar('SPEED',(e.top-0.9)/0.2)+bar('ACCEL',(e.accel-0.8)/0.45)+bar('GRIP',(e.grip-0.8)/0.4)+'<span class="pr">'+(own?'':'LOCKED · '+CAR_COST[i]+' COINS')+'</span>';
   if (TT.mode==='garage'){ garageBuy(); return; } if (false){ const br=$('gBuyRow'); if (!br) return; br.textContent=''; if (!own){ const b=document.createElement('button'); b.type='button'; b.className='btn'; b.textContent='UNLOCK · '+CAR_COST[i]; b.addEventListener('click',()=>{ const cost=CAR_COST[i]; if (meta.coins>=cost){ meta.coins-=cost; meta.cars[i]=true; saveMeta(); sfx.win(); selectCar(i); renderGarage(c.name+' UNLOCKED'); } else renderGarage('NEED '+(cost-meta.coins)+' MORE COINS FOR '+c.name); }); br.appendChild(b); } } }
-function ttTick(){ if (TT.cv && !shown.garage && TT.host!==$('carPick')) ttMount($('carPick'),'start'); if (!TT.cv || !TT.cv.isConnected || !TT.cv.offsetParent) return; ttSize(); const g=TT.g, w=TT.cw, h=TT.ch; const set=c3TT(TT.view); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,TT.cv.width,TT.cv.height); g.setTransform(DPR,0,0,DPR,0,0);
+function ttTick(){ if (TT.cv && !shown.garage && TT.host!==$('carPick')) ttMount($('carPick'),'start'); if (!TT.cv || !TT.cv.isConnected || !TT.cv.offsetParent) return; ttSize(); const g=TT.g, w=TT.cw, h=TT.ch; const inst=glTT(TT.view); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,TT.cv.width,TT.cv.height); g.setTransform(DPR,0,0,DPR,0,0);
   g.drawImage(TT.floor,0,0,w,h); g.globalCompositeOperation='lighter'; g.drawImage(TT.spot,0,0,w,h); g.globalCompositeOperation='source-over';
   const now=performance.now(); const dt=TT.lastT?Math.min(0.1,(now-TT.lastT)/1000):0; TT.lastT=now; if (!TT.drag && !reducedMotion()) TT.spin+=dt*24;
   // rim lights running around the disc
   const cx=w/2, cy=h*0.78, rx=w*0.4*0.86, ry=h*0.15*0.86; g.fillStyle='#bff8ff'; for (let k=0;k<16;k++){ const a=k/16*6.283+TT.spin*0.0174; const x=cx+Math.cos(a)*rx, y=cy+Math.sin(a)*ry; g.globalAlpha=0.35+0.65*(0.5+0.5*Math.sin(a)); g.fillRect(x-1.2,y-1.2,2.4,2.4); } g.globalAlpha=1;
   const lockK=meta.cars[TT.view]?1:0.45;
-  if (set && set.n){ const ang=((TT.spin%360)+360)%360; let yi=Math.round(ang/5)%72; const F=set.fr[0]; if (!F[yi]){ for (let d=1;d<72;d++){ if (F[(yi+d)%72]){ yi=(yi+d)%72; break; } if (F[(yi-d+72)%72]){ yi=(yi-d+72)%72; break; } } } const fr=F[yi];
-    if (fr){ const k=1/Math.min(2,window.devicePixelRatio||1), X=cx, Y=cy; const R=TT.rfl, rg=R.getContext('2d'); rg.setTransform(1,0,0,1,0,0); rg.clearRect(0,0,R.width,R.height); rg.setTransform(DPR,0,0,DPR,0,0); rg.save(); rg.translate(0,Y*2); rg.scale(1,-1); rg.drawImage(fr.cv,X-fr.ox*k,Y-fr.oy*k,fr.w*k,fr.h*k); rg.restore();
-      rg.globalCompositeOperation='destination-in'; const fg=rg.createLinearGradient(0,Y,0,Y+h*0.3); fg.addColorStop(0,'rgba(0,0,0,.35)'); fg.addColorStop(1,'rgba(0,0,0,0)'); rg.fillStyle=fg; rg.fillRect(0,Y,w,h-Y); rg.globalCompositeOperation='source-over';
-      g.drawImage(R,0,0,w,h); g.globalAlpha=lockK; g.drawImage(fr.cv,X-fr.ox*k,Y-fr.oy*k,fr.w*k,fr.h*k); g.globalAlpha=1; } }
+  if (inst){ const P=TTP; P.w=w; P.h=h; P.devW=TT.cv.width; P.devH=TT.cv.height; P.M.a=P.M.d=DPR; const Z=P.CAMD*5.6; P.pos[0]=0; P.pos[1]=(h/2-cy)*Z/((h/2)*P.CAMD); P.pos[2]=Z; P.yaw=TT.spin*0.01745; P.alpha=lockK;
+    NR_GL.begin(); NR_GL.setEnv(0.2,0.15,0,0,0); const cell=NR_GL.render(inst,P); NR_GL.end();
+    if (cell){ NR_GL.blit(g,cell,0.3*lockK,cy*DPR,0.5); NR_GL.blit(g,cell,1); } }
   else { const img=A.carPrev[TT.view]; if (img){ g.globalAlpha=lockK; g.drawImage(img,cx-w*0.22,cy-w*0.25,w*0.44,w*0.275); g.globalAlpha=1; } }
   // first visit: the workers are still building the cars; a hairline shows how far (nothing is built during a race)
-  { const q=C3.q.filter(c3Live).length; if (q>0){ const f=C3.got/(C3.got+q); g.fillStyle='rgba(255,255,255,.18)'; g.fillRect(w*0.3,h-3,w*0.4,1.5); g.fillStyle='#19f0ff'; g.fillRect(w*0.3,h-3,w*0.4*f,1.5); g.font='600 9px '+HF; g.fillStyle='rgba(255,255,255,.55)'; g.textAlign='center'; g.fillText('PREPARING CARS '+Math.round(f*100)+'%',w/2,h-7); } }
+  { const gr=glReady(); if (gr.pending>0){ const f=gr.models/Math.max(1,gr.total); g.fillStyle='rgba(255,255,255,.18)'; g.fillRect(w*0.3,h-3,w*0.4,1.5); g.fillStyle='#19f0ff'; g.fillRect(w*0.3,h-3,w*0.4*f,1.5); g.font='600 9px '+HF; g.fillStyle='rgba(255,255,255,.55)'; g.textAlign='center'; g.fillText('PREPARING CARS '+Math.round(f*100)+'%',w/2,h-7); } }
   // change-car chevrons, drawn in the canvas (the sides of the turntable are the controls)
   g.strokeStyle='rgba(255,255,255,.55)'; g.lineWidth=2; g.lineCap='round'; const cyy=h*0.5, s=Math.max(8,w*0.025); g.beginPath(); g.moveTo(w*0.05+s,cyy-s*1.4); g.lineTo(w*0.05,cyy); g.lineTo(w*0.05+s,cyy+s*1.4); g.moveTo(w*0.95-s,cyy-s*1.4); g.lineTo(w*0.95,cyy); g.lineTo(w*0.95-s,cyy+s*1.4); g.stroke(); }
 // ============================================================ steppers (ours): one line per choice instead of a row of buttons
@@ -3062,7 +3058,7 @@ function duoAssets(){ if (DUO.imgs) return; DUO.imgs=[];
 function duoPool(){ const a=[]; for (let i=0;i<220;i++) a.push({a:false,x:0,y:0,vx:0,vy:0,life:0,max:1,size:1,grow:0,type:0,rot:0,vr:0,col:0,drag:1,g:0}); return a; }
 function duoUse(i){ S=PS[i]; P=DUO.P[i]; DROPS=DUO.D[i]; CAR=DUO.cars[i]; CARI=CARS.length+i; }
 function duoRestore(){ S=S0; P=P0; DROPS=D0; CARI=opts.car; CAR=effCar(CARI); }
-function openDuo(){ initAudio(); if (DUO.on) duoExit(); scr('start',false); scr('result',false); scr('career',false); scr('garage',false); scr('story',false); scr('duoWin',false); scr('duo',true); duoAssets(); DUO.prep=true; c3Plan(); }
+function openDuo(){ initAudio(); if (DUO.on) duoExit(); scr('start',false); scr('result',false); scr('career',false); scr('garage',false); scr('story',false); scr('duoWin',false); scr('duo',true); duoAssets(); DUO.prep=true; glPlan(); }
 function startDuo(){ const now=performance.now(); if (now-DUO.goT<400) return; DUO.goT=now;
   if (!DUO.on){ DUO.keep={best:S0.best, bestLap:S0.bestLap}; }   /* 2P laps never touch the single-player records */
   duoAssets(); duoRestore(); scr('duo',false); scr('duoWin',false);
@@ -3074,8 +3070,8 @@ function startDuo(){ const now=performance.now(); if (now-DUO.goT<400) return; D
   DUO.P[0]=P0; DUO.D[0]=D0; if (!DUO.P[1]){ DUO.P[1]=duoPool(); DUO.D[1]=[]; for (let i=0;i<16;i++) DUO.D[1].push({a:false,x:0,y:0,dx:0,dy:0,t:0,max:1,r:2}); }
   for (let i=0;i<2;i++){ for (const p of DUO.P[i]) p.a=false; for (const d of DUO.D[i]) d.a=false; for (const o in DUO.k[i]) DUO.k[i][o]=false;
     const e={kind:'car', duo:i, name:'P'+(i+1), col:DUO_COL[i], offset:PS[i].playerX, z:-1, w:PLAYER_W, worldW:600, speed:0, img:DUO.imgs[i], c3:'d'+i, passed:false, horn:0, ind:0, indT:0, brake:0}; DUO.ents[i]=e; cars.push(e); }
-  DUO.on=true; DUO.over=false; DUO.winner=-1; DUO.fin.length=0; DUO.endT=0; duoSync(); last=0; c3Plan(true); }
-function duoExit(){ DUO.on=false; DUO.over=false; duoRestore(); c3Plan(); if (DUO.keep){ S0.best=DUO.keep.best; S0.bestLap=DUO.keep.bestLap; } S.duo=false; S.duoI=0; S.diffAdj=null; S.raceMode=opts.mode; S.lap=1; applyDifficulty(); buildCars(); for (const k in input) if (k!=='accel') input[k]=false; for (const o of DUO.k) for (const k in o) o[k]=false; }
+  DUO.on=true; DUO.over=false; DUO.winner=-1; DUO.fin.length=0; DUO.endT=0; duoSync(); last=0; glPlan(); }
+function duoExit(){ DUO.on=false; DUO.over=false; duoRestore(); glPlan(); if (DUO.keep){ S0.best=DUO.keep.best; S0.bestLap=DUO.keep.bestLap; } S.duo=false; S.duoI=0; S.diffAdj=null; S.raceMode=opts.mode; S.lap=1; applyDifficulty(); buildCars(); for (const k in input) if (k!=='accel') input[k]=false; for (const o of DUO.k) for (const k in o) o[k]=false; }
 // world cars that stand for the players (each half hides its own one)
 function duoSync(){ for (let i=0;i<2;i++){ const e=DUO.ents[i]; if (!e) continue; const T=PS[i], z=increase(T.pos,PLAYER_Z,trackLen), os=e.z>=0?findSeg(e.z):null, ns=findSeg(z);
   e.z=z; e.offset=T.playerX; e.speed=T.speed; e.brake=T.brakeVis>0.4?1:0;
@@ -3215,7 +3211,7 @@ window.__g = {
   saveNow: ()=>{ saveGame(); return hasSave(); }, loadSaved: ()=>loadSaved(), hasSave: ()=>hasSave(), clearSave: ()=>clearSave(),
   setSound: (v)=>setSound(v), sound: ()=>soundOn, diff: ()=>diff(), setDrift: (d,dir)=>{ S.drift=d; S.slipDir=dir||1; },
   tunnelStart: ()=>{ for (let i=0;i<segments.length;i++) if (segments[i].tunnel) return i*SEG; return -1; },
-  c3: ()=>c3Ready(), dbgP: ()=>{ const s=C3.S["p"+CARI]; if (!s) return null; const f=s.fr[0]&&s.fr[0][3]; const w=s.wh[0]&&s.wh[0][3]; return {ready:s.ready,wheels:s.wheels,n:s.n,pm:s.pm,f:f&&{w:f.w,h:f.h,ox:f.ox,oy:f.oy,rax:f.an.rax,axle:f.an.axle},w:w&&w.map(x=>x&&{w:x.w,h:x.h,wc:x.wc})}; }, c3sets: ()=>Object.keys(C3.S).map(k=>k+":"+(C3.S[k].ready?1:0)+":"+C3.S[k].n).join(" "),
+  gl: ()=>NR_GL.stats(), glReady: ()=>glReady(), glCells: ()=>cars.filter(c=>c._cell).length+(GLC.pcell?1:0), cellDump: ()=>{ const o=[]; const f=(c,n)=>{ if (!c) return; o.push({n, x:c.x,y:c.y,w:c.w,h:c.h,dx:c.dx,dy:c.dy,sc:c.sc,carW:Math.round(c.carW||0)}); }; f(GLC.pcell,'P'); for (const c of cars) if (c._cell) f(c._cell,c.c3||c.name); return o; },
   info: ()=>({gear:S.gear,rpm:S.rpmVis,drift:S.drift,draft:S.draft,tunnel:S.tunnelK,blur:S.blurK,skids:segments.reduce((a,s)=>a+s.skid.length,0),traffic:cars.length,curveK:diff().curveK}),
   cars: ()=>cars.map(c=>({z:c.z,offset:c.offset,curve:findSeg(c.z).curve})),
   frames: ()=>{ const n=Math.min(fcount,600), out=[]; for (let i=0;i<n;i++) out.push(frames[(fi-1-i+600)%600]); return out; },
