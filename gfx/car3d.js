@@ -305,14 +305,16 @@ function paintWheel(wh,phase,blur,steerless){ const rimC=wh.rimCol, w=wh.wheel, 
 function buildTruck(out,col,acc,o,plate,lit){ const M=out.meshes, A=out.anchors; const hl=out.L/2; const run=lit.run||0, brake=lit.brake||0, indL=lit.indL||0, indR=lit.indR||0;
   const z0=-hl+0.2, z1=hl-1.9;   // container
   const box=Mesh(1); extrude(box,(z)=>rrect(0,2.35,z,1.25,1.25,0.06,3),z0,z1,10,2,3); M.push(box);
-  box.paint=(p,n,O,part)=>{ const x=p[0],y=p[1],z=p[2],ax=Math.abs(x); O.m=M_PAINT; O.c[0]=col[0]; O.c[1]=col[1]; O.c[2]=col[2];
-    if (part===2){ // rear doors
-      O.c[0]=lerp(col[0],0.7,0.35); O.c[1]=lerp(col[1],0.7,0.35); O.c[2]=lerp(col[2],0.72,0.35); O.gloss=0.35;
+  box.paint=(p,n,O,part)=>{ const x=p[0],y=p[1],z=p[2],ax=Math.abs(x); O.m=M_PAINT; O.c[0]=col[0]; O.c[1]=col[1]; O.c[2]=col[2]; O.gloss=0.45;   /* a painted container, not a clear-coated car: less sky in it */
+    if (part===2){ // rear doors: satin panels, corrugated, darker than the box so they keep their shape under a bright sky or in the rain (no blown-out white)
+      O.m=M_PLASTIC; O.gloss=0.25; const k=0.62; O.c[0]=lerp(col[0],0.42,0.3)*k; O.c[1]=lerp(col[1],0.42,0.3)*k; O.c[2]=lerp(col[2],0.46,0.3)*k;
+      { const rb=frac(ax*5.2); if (rb<0.12){ O.c[0]*=0.72; O.c[1]*=0.72; O.c[2]*=0.72; } else if (rb<0.2){ O.c[0]*=1.12; O.c[1]*=1.12; O.c[2]*=1.12; } }
+      if (Math.abs(y-1.55)<0.025 || Math.abs(y-3.1)<0.025){ O.c[0]*=0.6; O.c[1]*=0.6; O.c[2]*=0.6; }
       if (ax<0.008) { O.c[0]*=0.3; O.c[1]*=0.3; O.c[2]*=0.3; return; }
       for (const bx of [0.32,0.82]){ if (Math.abs(ax-bx)<0.025){ O.m=M_CHROME; if (Math.abs(y-1.9)<0.05){ O.m=M_PLASTIC; O.c[0]=O.c[1]=O.c[2]=0.05; } return; } }
       if (ax>1.17 && Math.abs(frac((y-1.1)/0.8)-0.5)>0.42) { O.m=M_METAL; O.c[0]=O.c[1]=O.c[2]=0.4; return; }
       if (y<1.18 || y>3.52 || ax>1.19) { O.c[0]*=0.55; O.c[1]*=0.55; O.c[2]*=0.55; }
-      if (y>2.9 && y<3.25 && ax<1.0){ O.c[0]=acc[0]; O.c[1]=acc[1]; O.c[2]=acc[2]; if (frac(x*2.2+y*1.3)<0.12) { O.c[0]=O.c[1]=O.c[2]=1; } }
+      if (y>2.9 && y<3.25 && ax<1.0){ O.c[0]=acc[0]*0.8; O.c[1]=acc[1]*0.8; O.c[2]=acc[2]*0.8; if (frac(x*2.2+y*1.3)<0.12) { O.c[0]=O.c[1]=O.c[2]=0.82; } }
       if (ax>1.0 && ax<1.12 && y>3.45 && y<3.55) lens(O,AMBER,run*0.6,0.5,1);
       return; }
     if (Math.abs(n[0])>0.6){ if (frac((z-z0)/0.6)<0.05) { O.c[0]*=0.6; O.c[1]*=0.6; O.c[2]*=0.6; } if (y>1.9 && y<2.6 && z>z0+0.6 && z<z1-0.6){ O.c[0]=acc[0]; O.c[1]=acc[1]; O.c[2]=acc[2]; } if (y<1.18) { O.c[0]*=0.5; O.c[1]*=0.5; O.c[2]*=0.5; } }
