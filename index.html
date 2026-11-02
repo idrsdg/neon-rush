@@ -312,7 +312,7 @@
 <script src="../games/arcade.js"></script>
 <script src="anim/keys.js"></script>
 <script src="three.min.js"></script>
-<script src="gfx/car3d.js?v=5"></script>
+<script src="gfx/car3d.js?v=6"></script>
 <script src="gfx/cars-gl.js?v=1"></script>
 <script>
 (() => {
@@ -1696,6 +1696,7 @@ function glFog(n){ return (1 - fogAmt(n/DRAW)*0.85)*clamp((DRAW-n)/24,0,1); }
    advance on the game clock here, once per rendered frame, so motion is continuous at any refresh rate. */
 function glPrepass(w,h,base,sf,ck){ if (!GLC.on) return; NR_GL.begin(); NR_GL.setEnv(Math.max(pal.night,0), pal.sunset, S.tunnelK, S.wet, ((S.pos/SEG)%6)/6); const M=ctx.getTransform(); GLC.M=M; GLC.Minv=M.inverse();
   const P=GLC.P; P.w=w; P.h=h; P.CAMD=CAMD; P.HOR=HOR_OFF; P.devW=canvas.width; P.devH=canvas.height;
+  GLC.pcell=null; if (!ck) glPlayer(w,h,sf,M);   /* our car first: it always gets a full-resolution cell, however many near cars follow */
   const NS=segments.length, nt=Math.max(pal.night,S.tunnelK*0.7), blink=Math.sin(S.time*14)>0?1:0;
   for (let n=0;n<DRAW;n++){ const seg=segments[(base.i+n)%NS]; if (!seg.cars.length) continue; const p1=seg.p1, p2=seg.p2;
     for (const car of seg.cars){ car._cell=null; const pct=(car.z%SEG)/SEG; const cz=p1.cz+(p2.cz-p1.cz)*pct; if (cz<=CAMD*20 || (S.duo && car.duo===S.duoI)) continue;
@@ -1715,7 +1716,6 @@ function glPrepass(w,h,base,sf,ck){ if (!GLC.on) return; NR_GL.begin(); NR_GL.se
       P.lights.run=nt*0.6; P.lights.brake=g.br; P.lights.indL=car.ind<0?blink:0; P.lights.indR=car.ind>0?blink:0; P.lights.head=0;
       P.blur=clamp((sfc-0.05)/0.07,0,1); P.alpha=glFog(n); P.clipY=RP.clip; P.M=M;
       const cell=NR_GL.render(inst,P); if (!cell) continue; cell.gy=M.b*RP.x+M.d*RP.y+M.f; cell.gx=M.a*RP.x+M.c*RP.y+M.e; cell.carW=carW; cell.clipped=!!RP.clip && (M.d*RP.clip+M.f)<cell.dy+cell.dh-1; cell.cz=czr; car._cell=cell; car._inst=inst; } }
-  GLC.pcell=null; if (!ck) glPlayer(w,h,sf,M);
   NR_GL.end(); }
 /* our car: placed where the chase camera puts it (bottom centre, the keyed start / finish cameras move it through S.cv), at the size playerDestW() */
 function glPlayer(w,h,sf,M0){ const inst=glInst(PCAR); GLC.pinst=inst; if (!inst) return; const meta=inst.model.meta;
@@ -1742,12 +1742,16 @@ function glPlayer(w,h,sf,M0){ const inst=glInst(PCAR); GLC.pinst=inst; if (!inst
   const cell=NR_GL.render(inst,P); if (!cell) return; cell.gy=M.b*cx+M.d*Yb+M.f; cell.gx=M.a*cx+M.c*Yb+M.e; cell.carW=cw; cell.M=M; cell.cw=cw; cell.ch=ch; cell.cx=cx; cell.Yb=Yb; cell.baseY=baseY; cell.baseY0=baseY0; GLC.pcell=cell; }
 /* screen point (CSS, in the current canvas transform) of a car-space point of the instance last rendered */
 const GLA=[0,0];
-function glAnchor(inst,p,out){ const e=inst.carM; const P=GLC.P; const X=e[0]*p[0]+e[4]*p[1]+e[8]*p[2]+e[12], Y=e[1]*p[0]+e[5]*p[1]+e[9]*p[2]+e[13], Z=e[2]*p[0]+e[6]*p[1]+e[10]*p[2]+e[14]; out[0]=P.w/2+inst.offX+(P.w/2)*P.CAMD*X/Z; out[1]=P.h/2+P.HOR+inst.offY-(P.h/2)*P.CAMD*Y/Z; return out; }
+function glAnchor(inst,p,out){ const e=inst.carM; const P=GLC.P; const X=e[0]*p[0]+e[4]*p[1]+e[8]*p[2]+e[12], Y=e[1]*p[0]+e[5]*p[1]+e[9]*p[2]+e[13], Z=e[2]*p[0]+e[6]*p[1]+e[10]*p[2]+e[14]; out[0]=P.w/2+inst.offX+(P.w/2)*P.CAMD*X/Z; out[1]=P.h/2+P.HOR+inst.offY-inst.vh*P.CAMD*Y/Z; return out; }
 /* virtual chase camera per car: the 2D world puts the camera 3 m above and 3 m behind our car, a true perspective from there shows mostly roof and a
    hugely magnified tail. Each car is instead drawn as seen from at least 8 m away and at most 16 degrees above (what the old photographed sprites
    used), the same lateral angle, scaled so its apparent size is unchanged, and shifted so its rear-axle ground point lands exactly on the road point. */
-function glVirtual(P,xr,yr,czr,upm){ const Zv=Math.max(czr,8*upm), s=Zv/czr; const a=Math.atan2(-yr,czr), av=Math.min(a,0.28); const Yv=-Zv*Math.tan(av);
-  P.pos[0]=xr*s; P.pos[1]=Yv; P.pos[2]=Zv; P.upm=upm*s; const ky=(P.h/2)*P.CAMD; P.offX=0; P.offY=-ky*(yr/czr-Yv/Zv); }
+/* 2026-11-02 İdris "arabalar basık, ince": the road projection scales x by w/2 but y by h/2, so anything with height came out squashed by h/w (0.58 on
+   a laptop). Cars are now projected isotropically (vh = w/2: a metre up is as long as a metre across) and only their ground point follows the road's
+   projection, through offY. Each car is drawn as seen from at least 8 m away and at most 12 degrees above, the same lateral angle, scaled so its
+   apparent size is unchanged; arcade proportions: +5 % width, +10 % height. */
+function glVirtual(P,xr,yr,czr,upm){ const Zv=Math.max(czr,8*upm), s=Zv/czr; const a=Math.atan2(-yr,czr), av=Math.min(a,0.21); const Yv=-Zv*Math.tan(av);
+  P.pos[0]=xr*s; P.pos[1]=Yv; P.pos[2]=Zv; P.upm=upm*s; P.vh=P.w/2; P.exX=1.05; P.exY=1.1; P.offX=0; P.offY=P.CAMD*(P.vh*Yv/Zv-(P.h/2)*yr/czr); }
 /* a cell copied with the impact squash / yaw of the struck car (the same motion the sprite path used) */
 function impBlitCell(cell){ const I=S.imp, k=I.t, on=k<0.03?k/0.03:1; const sq=(I.kind?0.02:0.03+0.1*I.sev)*Math.cos(k*30)*Math.exp(-k*8)*on, yaw=(I.kind?0.05:0.07)*I.side*Math.sin(k*24)*Math.exp(-k*6), lift=k<0.2?Math.sin(Math.PI*k/0.2)*cell.dh*0.05*I.sev:0;
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.translate(cell.dx+cell.dw/2,cell.dy+cell.dh-lift); ctx.rotate(yaw); ctx.scale(1+sq,1-sq); ctx.drawImage(NR_GL.canvas(),cell.x,cell.y,cell.w,cell.h,-cell.dw/2,-cell.dh,cell.dw,cell.dh); ctx.restore(); }
@@ -2910,7 +2914,7 @@ function ttTick(){ if (TT.cv && !shown.garage && TT.host!==$('carPick')) ttMount
   // rim lights running around the disc
   const cx=w/2, cy=h*0.78, rx=w*0.4*0.86, ry=h*0.15*0.86; g.fillStyle='#bff8ff'; for (let k=0;k<16;k++){ const a=k/16*6.283+TT.spin*0.0174; const x=cx+Math.cos(a)*rx, y=cy+Math.sin(a)*ry; g.globalAlpha=0.35+0.65*(0.5+0.5*Math.sin(a)); g.fillRect(x-1.2,y-1.2,2.4,2.4); } g.globalAlpha=1;
   const lockK=meta.cars[TT.view]?1:0.45;
-  if (inst){ const P=TTP; P.w=w; P.h=h; P.devW=TT.cv.width; P.devH=TT.cv.height; P.M.a=P.M.d=DPR; const Z=P.CAMD*5.6; P.pos[0]=0; P.pos[1]=(h/2-cy)*Z/((h/2)*P.CAMD); P.pos[2]=Z; P.yaw=TT.spin*0.01745; P.alpha=lockK;
+  if (inst){ const P=TTP; P.w=w; P.h=h; P.devW=TT.cv.width; P.devH=TT.cv.height; P.M.a=P.M.d=DPR; const Z=P.CAMD*5.6; P.vh=w/2; P.exX=1.05; P.exY=1.1; P.pos[0]=0; P.pos[1]=(h/2-cy)*Z/(P.vh*P.CAMD); P.pos[2]=Z; P.yaw=TT.spin*0.01745; P.alpha=lockK;
     NR_GL.begin(); NR_GL.setEnv(0.2,0.15,0,0,0); const cell=NR_GL.render(inst,P); NR_GL.end();
     if (cell){ NR_GL.blit(g,cell,0.3*lockK,cy*DPR,0.5); NR_GL.blit(g,cell,1); } }
   else { const img=A.carPrev[TT.view]; if (img){ g.globalAlpha=lockK; g.drawImage(img,cx-w*0.22,cy-w*0.25,w*0.44,w*0.275); g.globalAlpha=1; } }
@@ -3211,6 +3215,7 @@ window.__g = {
   saveNow: ()=>{ saveGame(); return hasSave(); }, loadSaved: ()=>loadSaved(), hasSave: ()=>hasSave(), clearSave: ()=>clearSave(),
   setSound: (v)=>setSound(v), sound: ()=>soundOn, diff: ()=>diff(), setDrift: (d,dir)=>{ S.drift=d; S.slipDir=dir||1; },
   tunnelStart: ()=>{ for (let i=0;i<segments.length;i++) if (segments[i].tunnel) return i*SEG; return -1; },
+  carRatio: ()=>{ const out=[]; const m=(inst,n)=>{ if (!inst) return; const A=[0,0,0]; glAnchor(inst,[0,0,0],A); const a0=A.slice(); glAnchor(inst,[0,1,0],A); const up=Math.hypot(A[0]-a0[0],A[1]-a0[1]); glAnchor(inst,[1,0,0],A); const ac=Math.hypot(A[0]-a0[0],A[1]-a0[1]); out.push({n, pxPerM:+ac.toFixed(1), upOverAcross:+(up/ac).toFixed(3)}); }; m(GLC.pinst,'player'); for (const c of cars) if (c._cell && c._inst) m(c._inst,(c.c3||c.name)+'@'+Math.round(c._cell.carW)); return out; },
   gl: ()=>NR_GL.stats(), glReady: ()=>glReady(), glCells: ()=>cars.filter(c=>c._cell).length+(GLC.pcell?1:0), cellDump: ()=>{ const o=[]; const f=(c,n)=>{ if (!c) return; o.push({n, x:c.x,y:c.y,w:c.w,h:c.h,dx:c.dx,dy:c.dy,sc:c.sc,carW:Math.round(c.carW||0)}); }; f(GLC.pcell,'P'); for (const c of cars) if (c._cell) f(c._cell,c.c3||c.name); return o; },
   info: ()=>({gear:S.gear,rpm:S.rpmVis,drift:S.drift,draft:S.draft,tunnel:S.tunnelK,blur:S.blurK,skids:segments.reduce((a,s)=>a+s.skid.length,0),traffic:cars.length,curveK:diff().curveK}),
   cars: ()=>cars.map(c=>({z:c.z,offset:c.offset,curve:findSeg(c.z).curve})),

@@ -92,13 +92,13 @@ const MODELS={};
 function wheelsStd(zr,zf,r,rf,tw,x){ return [{z:zr,r,w:tw,x,front:false},{z:zf,r:rf,w:tw*0.9,x,front:true}]; }
 MODELS.comet={ L:4.5, Wd:2.0, H:1.2, wheels:wheelsStd(-1.36,1.42,0.35,0.33,0.31,0.8), rim:'#22242c', pm:1,
   prof:{ y0:curve([[0,0.3],[0.1,0.2],[0.9,0.17],[1,0.25]]), yb:curve([[0,0.8],[0.12,0.86],[0.42,0.84],[0.72,0.76],[0.93,0.62],[1,0.5]]), w:curve([[0,0.84],[0.07,0.95],[0.2,0.99],[0.42,0.94],[0.62,0.92],[0.82,0.95],[0.96,0.9],[1,0.78]]),
-    cab:curve([[0,0],[0.17,0],[0.36,1],[0.6,1],[0.75,0],[1,0]]), yr:curve([[0,1.0],[0.3,1.13],[0.48,1.18],[0.62,1.14],[1,0.9]]), wr:curve([[0,0.5],[0.45,0.6],[1,0.5]]) } };
+    cab:curve([[0,0],[0.17,0],[0.36,1],[0.6,1],[0.75,0],[1,0]]), yr:curve([[0,1.0],[0.3,1.17],[0.48,1.23],[0.62,1.19],[1,0.9]]), wr:curve([[0,0.52],[0.45,0.66],[1,0.52]]) } };
 MODELS.titan={ L:4.7, Wd:2.0, H:1.36, wheels:wheelsStd(-1.42,1.48,0.37,0.35,0.33,0.8), rim:'#c8ccd8', pm:1,
   prof:{ y0:curve([[0,0.32],[0.08,0.24],[0.9,0.22],[1,0.3]]), yb:curve([[0,0.86],[0.3,0.88],[0.66,0.86],[0.9,0.84],[1,0.74]]), w:curve([[0,0.9],[0.05,0.97],[0.25,0.99],[0.5,0.95],[0.75,0.97],[0.97,0.95],[1,0.86]]),
     cab:curve([[0,0],[0.25,0],[0.37,1],[0.6,1],[0.7,0],[1,0]]), yr:curve([[0,1.1],[0.4,1.31],[0.55,1.32],[1,1.1]]), wr:curve([[0,0.6],[0.5,0.68],[1,0.6]]) } };
 MODELS.arrow={ L:4.6, Wd:2.04, H:1.1, wheels:wheelsStd(-1.4,1.5,0.36,0.33,0.33,0.82), rim:'#d8dbe4', pm:1,
   prof:{ y0:curve([[0,0.24],[0.1,0.15],[0.9,0.14],[1,0.18]]), yb:curve([[0,0.72],[0.15,0.76],[0.35,0.74],[0.62,0.7],[0.9,0.55],[1,0.42]]), w:curve([[0,0.9],[0.06,1.0],[0.22,1.02],[0.42,0.9],[0.6,0.9],[0.8,0.99],[0.95,0.94],[1,0.82]]),
-    cab:curve([[0,0],[0.26,0],[0.4,1],[0.6,1],[0.76,0],[1,0]]), yr:curve([[0,0.9],[0.4,1.06],[0.52,1.09],[0.62,1.05],[1,0.8]]), wr:curve([[0,0.35],[0.5,0.44],[1,0.35]]) } };
+    cab:curve([[0,0],[0.26,0],[0.4,1],[0.6,1],[0.76,0],[1,0]]), yr:curve([[0,0.9],[0.4,1.12],[0.52,1.15],[0.62,1.1],[1,0.8]]), wr:curve([[0,0.4],[0.5,0.54],[1,0.4]]) } };
 MODELS.hatch={ L:4.1, Wd:1.84, H:1.5, wheels:wheelsStd(-1.3,1.3,0.32,0.32,0.24,0.74), rim:'#b8bcc8', pm:1,
   prof:{ y0:curve([[0,0.34],[0.07,0.26],[0.92,0.25],[1,0.34]]), yb:curve([[0,0.95],[0.1,0.96],[0.6,0.92],[0.85,0.84],[1,0.72]]), w:curve([[0,0.84],[0.05,0.9],[0.3,0.91],[0.7,0.9],[0.95,0.86],[1,0.78]]),
     cab:curve([[0,0.2],[0.06,1],[0.6,1],[0.78,0],[1,0]]), yr:curve([[0,1.25],[0.1,1.43],[0.45,1.47],[0.62,1.42],[1,1.0]]), wr:curve([[0,0.6],[0.4,0.7],[1,0.6]]) } };
@@ -127,13 +127,13 @@ function build(name,o){ const Md=MODELS[name]; const L=Md.L, hl=L/2; const meshe
     const st=name;
     // ---- wings, diffusers, exhausts, mirrors
     const ex=[]; let wingY=0;
-    if (st==='comet'){ const wy=1.12; wingY=wy; const wing=Mesh(4); extrude(wing,(z,t)=>rrect(0,wy+0.01*Math.sin(t*PI),z,0.92,0.028,0.02,3),-hl+0.04,-hl+0.36,3,4,4); meshes.push(wing);
-        for (const sd of [-1,1]){ const ep=Mesh(4); extrude(ep,(z)=>rrect(sd*0.94,wy-0.03,z,0.012,0.1,0.01,2),-hl+0.0,-hl+0.4,2,4,4); meshes.push(ep); const sp=Mesh(4); extrude(sp,(z,t)=>rrect(sd*0.42,lerp(0.9,wy-0.02,0.5),z,0.018,(wy-0.88)/2,0.01,2),-hl+0.12,-hl+0.26,1,4,4); meshes.push(sp); }
+    if (st==='comet'){ const wy=1.06; wingY=wy; const wing=Mesh(4); extrude(wing,(z,t)=>rrect(0,wy+0.01*Math.sin(t*PI),z,0.8,0.024,0.018,3),-hl+0.06,-hl+0.32,3,4,4); meshes.push(wing);
+        for (const sd of [-1,1]){ const ep=Mesh(4); extrude(ep,(z)=>rrect(sd*0.82,wy-0.03,z,0.012,0.08,0.01,2),-hl+0.04,-hl+0.36,2,4,4); meshes.push(ep); const sp=Mesh(4); extrude(sp,(z,t)=>rrect(sd*0.42,lerp(0.9,wy-0.02,0.5),z,0.018,(wy-0.88)/2,0.01,2),-hl+0.12,-hl+0.26,1,4,4); meshes.push(sp); }
         for (const x of [-0.56,-0.42,0.42,0.56]) ex.push([x,0.36,0.052]); }
     else if (st==='titan'){ const lip=Mesh(5); extrude(lip,(z,t)=>rrect(0,0.94+t*0.03,z,0.9,0.03,0.025,3),-hl+0.02,-hl+0.18,2,4,4); meshes.push(lip); lip.paint=paintBody; lip.part=1; for (const c of lip.caps) c.paint=paintBody;
         for (const x of [-0.58,0.58]) ex.push([x,0.36,0.07]); }
-    else if (st==='arrow'){ const wy=1.3; wingY=wy; const wing=Mesh(4); extrude(wing,(z,t)=>rrect(0,wy+0.02*Math.sin(t*PI),z,1.0,0.035,0.025,3),-hl-0.12,-hl+0.32,3,4,4); meshes.push(wing);
-        for (const sd of [-1,1]){ const ep=Mesh(4); extrude(ep,(z)=>rrect(sd*1.02,wy-0.06,z,0.014,0.16,0.01,2),-hl-0.14,-hl+0.36,2,4,4); meshes.push(ep);
+    else if (st==='arrow'){ const wy=1.2; wingY=wy; const wing=Mesh(4); extrude(wing,(z,t)=>rrect(0,wy+0.015*Math.sin(t*PI),z,0.86,0.03,0.022,3),-hl-0.06,-hl+0.3,3,4,4); meshes.push(wing);
+        for (const sd of [-1,1]){ const ep=Mesh(4); extrude(ep,(z)=>rrect(sd*0.88,wy-0.05,z,0.014,0.12,0.01,2),-hl-0.08,-hl+0.34,2,4,4); meshes.push(ep);
           const neck=Mesh(4); extrude(neck,(z,t)=>{ const yy=lerp(0.72,wy,t); const ring=rrect(sd*0.32,0,0,0.014,0.06,0.01,2); for (const q of ring.p){ const yy2=q[1]; q[1]=yy; q[2]=lerp(-hl+0.42,-hl+0.1,t*t)+yy2; } ring.c=[sd*0.32,yy,lerp(-hl+0.42,-hl+0.1,t*t)]; return ring; },0,1,6,0,0); meshes.push(neck); }
         const fin=Mesh(1); extrude(fin,(z,t)=>{ const h=lerp(0.02,0.2,smooth(0,1,1-t)); return rrect(0,lerp(lut(B.yr,0.5),0.98,1-t)+h/2,z,0.012,h/2+0.01,0.008,2); },-hl+0.25,-hl+2.1,8,4,4); fin.paint=paintBody; for (const c of fin.caps) c.paint=paintBody; meshes.push(fin);
         for (const x of [-0.09,0.09]) ex.push([x,0.62,0.05]); }
@@ -148,7 +148,7 @@ function build(name,o){ const Md=MODELS[name]; const L=Md.L, hl=L/2; const meshe
     const uw=st==='van'?0.86:st==='hatch'?0.74:0.72; const zm=-hl+uw*L, wm=lut(B.w,uw), ym=lut(B.yb,uw)+0.1;
     for (const sd of [-1,1]){ const m=Mesh(1); ellipsoid(m,sd*(wm+0.09),ym,zm,0.09,0.055,0.11,6,12); m.paint=(p,n,O)=>{ O.m=M_PAINT; tintCol(O); if (n[2]<-0.55){ O.m=M_CHROME; } else if (n[1]<-0.3){ O.m=M_PLASTIC; grey(O,0.03); } }; meshes.push(m); const arm=Mesh(4); ellipsoid(arm,sd*(wm+0.02),ym-0.025,zm+0.02,0.07,0.025,0.05,4,8); arm.weight=0.5; meshes.push(arm); }
     A.mirror=[[-(wm+0.17),ym,zm],[wm+0.17,ym,zm]];
-    if (wingY) A.wing=[[-0.9,wingY+0.03,-hl+0.2],[0.9,wingY+0.03,-hl+0.2]];
+    if (wingY) A.wing=[[-0.8,wingY+0.03,-hl+0.2],[0.8,wingY+0.03,-hl+0.2]];
   }
   // ---- wheels
   out.wheelMeshes=[]; for (const w of wheelList){ const wm=wheelMesh(w,Md.rim,o.rim); out.wheelMeshes.push(wm); }

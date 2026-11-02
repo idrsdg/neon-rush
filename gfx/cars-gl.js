@@ -98,7 +98,7 @@ function init(){ if (G.ok || G.err) return G.ok; try{ if (!T) throw new Error('t
 function setSize(w,h){ w=Math.max(64,Math.round(w)); h=Math.max(64,Math.round(h)); if (w===G.W && h===G.H) return; G.W=w; G.H=h; if (G.ok) G.renderer.setSize(w,h,false); }
 
 // -------------------------------------------------------------- models: baked in workers (gfx/car3d.js), uploaded as textures + geometry
-function workers(){ if (G.workers.length || G.noWorkers) return; try{ const n=Math.max(1,Math.min(2,(navigator.hardwareConcurrency|0)-1)); for (let i=0;i<n;i++){ const w=new Worker('gfx/car3d.js?v=5'); const o={w,busy:null}; w.onmessage=e=>onBaked(o,e.data); w.onerror=()=>{ G.noWorkers=true; if (o.busy){ const j=o.busy; o.busy=null; G.jobs.unshift(j); } pump(); }; G.workers.push(o); } } catch(e){ G.noWorkers=true; } }
+function workers(){ if (G.workers.length || G.noWorkers) return; try{ const n=Math.max(1,Math.min(2,(navigator.hardwareConcurrency|0)-1)); for (let i=0;i<n;i++){ const w=new Worker('gfx/car3d.js?v=6'); const o={w,busy:null}; w.onmessage=e=>onBaked(o,e.data); w.onerror=()=>{ G.noWorkers=true; if (o.busy){ const j=o.busy; o.busy=null; G.jobs.unshift(j); } pump(); }; G.workers.push(o); } } catch(e){ G.noWorkers=true; } }
 function pump(){ if (G.noWorkers){ if (!G.tick && G.jobs.length){ G.tick=setTimeout(()=>{ G.tick=0; const j=G.jobs.shift(); if (j){ try{ const r=window.NR_CAR3D.bake(j.model,j.opts,j.W,j.H); upload(j,r); }catch(e){ console.warn('bake',e); G.failed[j.key]=1; delete G.pending[j.key]; } } pump(); },30); } return; }
   for (const o of G.workers){ if (o.busy) continue; const j=G.jobs.shift(); if (!j) return; o.busy=j; o.w.postMessage({bake:{id:j.id,model:j.model,opts:j.opts,W:j.W,H:j.H}}); } }
 function onBaked(o,m){ const j=o.busy; o.busy=null; if (j && m && m.id===j.id){ if (m.r) upload(j,m.r); else { console.warn('bake failed',m.err); G.failed[j.key]=1; delete G.pending[j.key]; } } pump(); }
@@ -148,14 +148,15 @@ function begin(){ if (!G.ok) return; G.cells.length=0; G.shelfX=1; G.shelfY=1; G
 function alloc(w,h){ if (w>G.W-2 || h>G.H-2) return null; if (G.shelfX+w+1>G.W){ G.shelfX=1; G.shelfY+=G.shelfH+1; G.shelfH=0; } if (G.shelfY+h+1>G.H) return null; const c={x:G.shelfX,y:G.shelfY,w,h}; G.shelfX+=w+1; if (h>G.shelfH) G.shelfH=h; return c; }
 const M4=new T.Matrix4(), M4b=new T.Matrix4(), M4c=new T.Matrix4(), M4d=new T.Matrix4(), V3=new T.Vector3(), Q=new T.Quaternion(), E3=new T.Euler(), S3=new T.Vector3(1,1,1);
 G.cornersS=new Float32Array(36);
-/* P: { w,h,CAMD,HOR: the 2D projection of this frame (CSS px); offX,offY: screen shift (CSS px) of the whole car (virtual chase camera, see glVirtual);  M:{a,b,c,d,e,f}: canvas transform CSS -> device px at blit time;
+/* P: { w,h,CAMD,HOR: the 2D projection of this frame (CSS px); vh: vertical scale (default h/2 like the road; cars pass w/2 so they are not squashed by h/w);
+        exX, exY: stylised width / height factors; offX,offY: screen shift (CSS px) of the whole car (virtual chase camera, see glVirtual);  M:{a,b,c,d,e,f}: canvas transform CSS -> device px at blit time;
         pos:[X,Y,Z]: camera-space position (game units) of the rear-axle ground point; upm: units per metre; yaw,pitch,roll (rad, whole car);
         body:{dy (m), pitch, roll, sx, sy}; wheels:{spin (rad), steer (rad), dy:[m per wheel]}; shadowDy (m: the car lifts, the shadow stays);
         lights:{run,brake,indL,indR,head}; blur 0..1; alpha; clipY (CSS y, nothing drawn below it) or null; tunnel {k, phase}; shadowA }
    -> cell {x,y,w,h, dx,dy (device px destination), ok:true} or null (off-canvas / no room) */
 function render(inst,P){ if (!G.ok || !inst) return null; const m=inst.model, meta=m.meta, upm=P.upm;
   // whole-car matrix: translate to the ground point, yaw / pitch / roll, metres -> units, rear axle at the origin
-  E3.set(P.pitch||0,P.yaw||0,P.roll||0,'YXZ'); Q.setFromEuler(E3); V3.set(P.pos[0],P.pos[1],P.pos[2]); S3.set(upm,upm,upm); M4.compose(V3,Q,S3); M4b.makeTranslation(0,0,-meta.rz); M4.multiply(M4b); inst.carM.set(M4.elements);   // M4 = car matrix (kept for anchors: lamps, exhausts, roof)
+  E3.set(P.pitch||0,P.yaw||0,P.roll||0,'YXZ'); Q.setFromEuler(E3); V3.set(P.pos[0],P.pos[1],P.pos[2]); S3.set(upm*(P.exX||1),upm*(P.exY||1),upm); M4.compose(V3,Q,S3); M4b.makeTranslation(0,0,-meta.rz); M4.multiply(M4b); inst.carM.set(M4.elements);   // M4 = car matrix (kept for anchors: lamps, exhausts, roof)
   // body: bob / dive / squat / roll about the wheelbase centre
   const B=P.body; if (B && (B.dy||B.pitch||B.roll||(B.sx&&B.sx!==1)||(B.sy&&B.sy!==1))){ const pz=(meta.rz+meta.fz)/2; M4c.makeTranslation(0,0.35,pz); E3.set(B.pitch||0,0,B.roll||0,'YXZ'); Q.setFromEuler(E3); V3.set(0,B.dy||0,0); S3.set(B.sx||1,B.sy||1,1); M4d.compose(V3,Q,S3); M4c.multiply(M4d); M4d.makeTranslation(0,-0.35,-pz); M4c.multiply(M4d); M4b.multiplyMatrices(M4,M4c); } else M4b.copy(M4);
   inst.body.matrixWorld.copy(M4b); if (inst.body2) inst.body2.matrixWorld.copy(M4b);
@@ -166,10 +167,10 @@ function render(inst,P){ if (!G.ok || !inst) return null; const m=inst.model, me
   M4c.makeTranslation(0,-(P.shadowDy||0),0); inst.shadow.matrixWorld.multiplyMatrices(M4,M4c); inst.uShadow.value=(P.shadowA==null?0.72:P.shadowA);
   // screen bounds: the body box and the shadow rectangle (on the ground) through the car matrix and the 2D projection
   const bb=meta.bbox, hx=meta.Wd/2+0.45, hz=meta.L/2+0.35; const sdy=-(P.shadowDy||0);
-  const Mx=P.M, w=P.w, h=P.h, CAMD=P.CAMD, HOR=P.HOR||0; const e=M4.elements; const C=G.cornersS; let nc=0;
+  const Mx=P.M, w=P.w, h=P.h, CAMD=P.CAMD, HOR=P.HOR||0, vh=P.vh||h/2; const e=M4.elements; const C=G.cornersS; let nc=0;
   for (let k=0;k<12;k++){ let lx,ly,lz; if (k<8){ lx=k&1?bb[3]+0.05:bb[0]-0.05; ly=k&2?bb[4]+0.08:bb[1]-0.05; lz=k&4?bb[5]+0.05:bb[2]-0.05; } else { lx=k&1?hx:-hx; ly=sdy; lz=k&2?hz:-hz; }
     const X=e[0]*lx+e[4]*ly+e[8]*lz+e[12], Y=e[1]*lx+e[5]*ly+e[9]*lz+e[13], Z=e[2]*lx+e[6]*ly+e[10]*lz+e[14]; if (Z<=1) return null;
-    C[nc++]=w/2+(P.offX||0)+(w/2)*CAMD*X/Z; C[nc++]=h/2+HOR+(P.offY||0)-(h/2)*CAMD*Y/Z; C[nc++]=Z; }
+    C[nc++]=w/2+(P.offX||0)+(w/2)*CAMD*X/Z; C[nc++]=h/2+HOR+(P.offY||0)-vh*CAMD*Y/Z; C[nc++]=Z; }
   let zmin=1e9, zmax=-1e9; for (let k=2;k<36;k+=3){ if (C[k]<zmin) zmin=C[k]; if (C[k]>zmax) zmax=C[k]; }
   // the cell: whole device pixels, the car's own fractional offset lives in the projection. No room at full size (a pile-up of near cars):
   // the car is drawn at half, then quarter resolution and copied up, never dropped to the flat sprite.
@@ -184,7 +185,7 @@ function render(inst,P){ if (!G.ok || !inst) return null; const m=inst.model, me
     cell=alloc(vx1-vx0,vy1-vy0); if (!cell) G.dropped++; }
   if (!cell) return null; sc*=2; cell.ok=true; cell.sc=sc; cell.dx=vx0/sc; cell.dy=vy0/sc; cell.dw=cell.w/sc; cell.dh=cell.h/sc; if (sc<1) G.shrunk++;
   // projection: camera space -> 2D screen -> device -> this cell's clip space (all affine on top of the perspective, so it is exact)
-  const Sx0=(w/2)*CAMD, Sx2=w/2+(P.offX||0), Sy1=-(h/2)*CAMD, Sy2=h/2+HOR+(P.offY||0); inst.offX=P.offX||0; inst.offY=P.offY||0;   // sx*Z = Sx0*X + Sx2*Z ; sy*Z = Sy1*Y + Sy2*Z
+  const Sx0=(w/2)*CAMD, Sx2=w/2+(P.offX||0), Sy1=-vh*CAMD, Sy2=h/2+HOR+(P.offY||0); inst.offX=P.offX||0; inst.offY=P.offY||0; inst.vh=vh;   // sx*Z = Sx0*X + Sx2*Z ; sy*Z = Sy1*Y + Sy2*Z
   const Dx0=ma*Sx0, Dx1=mc*Sy1, Dx2=ma*Sx2+mc*Sy2+me, Dy0=mb*Sx0, Dy1=md*Sy1, Dy2=mb*Sx2+md*Sy2+mf;
   const kx=2/cell.w, ky=2/cell.h; const near=Math.max(1,zmin*0.5), far=zmax*2+10;
   G.camera.projectionMatrix.set(
