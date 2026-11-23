@@ -315,7 +315,7 @@
 <script src="three.min.js"></script>
 <script src="gfx/car3d.js?v=6"></script>
 <script src="gfx/cars-gl.js?v=3"></script>
-<script src="gfx/props-gl.js?v=2"></script>
+<script src="gfx/props-gl.js?v=3"></script>
 <script>
 (() => {
 'use strict';
@@ -1780,8 +1780,8 @@ function prRes(sp){ if (sp._pr!==undefined) return sp._pr; let r=null; const I=N
     case undefined: if (sp.img){ const m=NR_PROPS.PR.map.get(sp.img); if (m){ const it=I(m.id); if (it) r={it,tex:it.kind==='tex'?sp.img:null,a:sp.img.height/sp.img.width,ww:sp.worldW,flat:it.kind==='tex'?1:0,snow:m.snow||0}; } } break; }
   if (r && !r.it) r=null; sp._pr=r; return r; }
 /* the nearest props of this frame are drawn as meshes, in the same GL pass as the cars (a fixed budget, so the cost never grows with the scene) */
-function prPrepass(w,h,base,M){ if (!window.NR_PROPS || !NR_PROPS.ready()) return; NR_PROPS.begin(); const max=(w<600?5:10)*(GQ<0.7?0.5:1), minW=w<600?34:52, NS=segments.length; let cnt=0;
-  for (let n=1;n<70 && cnt<max;n++){ const seg=segments[(base.i+n)%NS], list=seg.sprites; if (!list.length) continue; const p=seg.p1; if (p.cz<=0) continue;
+function prPrepass(w,h,base,M){ if (!window.NR_PROPS || !NR_PROPS.ready()) return; NR_PROPS.begin(); const max=(w<600?3:5)*(GQ<0.7?0.5:1), minW=w<600?48:84, NS=segments.length; let cnt=0;
+  for (let n=1;n<36 && cnt<max;n++){ const seg=segments[(base.i+n)%NS], list=seg.sprites; if (!list.length) continue; const p=seg.p1; if (p.cz<=0) continue;
     for (let i=0;i<list.length && cnt<max;i++){ const sp=list[i], r=prRes(sp); if (!r) continue; const s=p.sc*w/2, dw=r.ww*s; if (dw<minW || dw>w*0.82) continue; const dh=dw*r.a; if (dh>h*1.15) continue; const X=p.sx+p.sc*(sp.offset||0)*ROADW*w/2; if (X+dw<0 || X-dw>w || p.sy<0 || (seg.clip && p.sy-dh>=seg.clip)) continue;
       const yaw=r.flat?0:clamp((X-w/2)/(w/2),-1,1)*0.42; if (NR_PROPS.put(sp,r.it,r.tex?NR_PROPS.faceTex(r.tex):null,dw,dh,M,yaw,S.time+(seg.i%17)*0.37,r.snow)) cnt++; } }
   if (S.nitroVis>0.05 && GLC.pcell && !isCk()){ const it=NR_PROPS.item('flame'), fw=GLC.pcell.cw*0.15, fh=fw*it.asp; NR_PROPS.put(PRFL,it,null,fw,fh,M,0,S.time,0); } }
