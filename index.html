@@ -314,7 +314,8 @@
 <script src="anim/keys.js"></script>
 <script src="three.min.js"></script>
 <script src="gfx/car3d.js?v=6"></script>
-<script src="gfx/cars-gl.js?v=2"></script>
+<script src="gfx/cars-gl.js?v=3"></script>
+<script src="gfx/props-gl.js?v=1"></script>
 <script>
 (() => {
 'use strict';
@@ -882,7 +883,7 @@ function buildBg(){
       for (let i=0;i<48;i++){ const a=arr[i], b=arr[i+1]; for (let k=0;k<5;k++){ const t=k/5; pts.push([(i+t)/48*w, h-(a+(b-a)*t+(k?(R2()-0.5)*0.035:0))*h]); } } pts.push([w,h-arr[48]*h]);
       const path=()=>{ g.beginPath(); g.moveTo(0,h); for (const P of pts) g.lineTo(P[0],P[1]); g.lineTo(w,h); g.closePath(); };
       const gr=g.createLinearGradient(0,0,0,h); gr.addColorStop(0,shade(col,lift)); gr.addColorStop(1,rgb(col)); g.fillStyle=gr; path(); g.fill();
-      g.save(); path(); g.clip();
+      g.save(); path(); g.clip(); if (window.NR_PROPS && NR_PROPS.ready()) NR_PROPS.ridge(g,w,h,arr,col,lift,p.fog,hz);
       for (let i=1;i<48;i++){ if (!(arr[i]>arr[i-1] && arr[i]>=arr[i+1])) continue; const x=i/48*w, y=h-arr[i]*h; let j=i+1; while (j<48 && arr[j+1]<arr[j]) j++; const xr=j/48*w;
         g.fillStyle='rgba(10,0,30,.2)'; g.beginPath(); g.moveTo(x,y); g.lineTo(xr,h-arr[j]*h); g.lineTo(xr+(xr-x)*0.3,h); g.lineTo(x+(xr-x)*0.15,h); g.closePath(); g.fill();
         g.strokeStyle='rgba(255,255,255,.18)'; g.lineWidth=1.2; g.beginPath(); g.moveTo(x,y); g.lineTo(x-(xr-x)*0.25,y+(h-y)*0.35); g.stroke();
@@ -957,7 +958,7 @@ function genTrack(rc,seed){ const r=rng(seed|0 || 1); const pick=(a)=>a[0]+r()*(
   }
   return tunnelAt; }
 function setTrack(theme,seed){ if (!THEMES[theme]) theme='city'; if (seed==null) seed=THEMES[theme].seed; S.theme=theme; S.seed=seed;
-  PALS=themePals(theme); bgShapes(theme); worldTheme(theme); buildTrack(theme,seed);
+  PALS=themePals(theme); bgShapes(theme); worldTheme(theme); buildTrack(theme,seed); prWorld();
   cars.length=0; S.pos=0; S.prevPz=0;
   if (W>0){ buildBg(); buildMap(); } pal.step=-1; }
 function buildTrack(theme,seed){
@@ -1718,7 +1719,7 @@ function glPrepass(w,h,base,sf,ck){ if (!GLC.on) return; NR_GL.begin(); NR_GL.se
       P.anim.t=S.time+car.z*0.0007; P.anim.speed=clamp(sfc,0,1); P.anim.brake=g.br; P.anim.throttle=car.nitroT>0?1:clamp(acc/(MAX_SPEED*0.4),0,1); P.anim.hit=S.imp.car===car&&S.imp.t<0.6?1-S.imp.t/0.6:0;
       P.blur=clamp((sfc-0.05)/0.07,0,1); P.alpha=glFog(n); P.clipY=RP.clip; P.M=M;
       const cell=NR_GL.render(inst,P); if (!cell) continue; cell.gy=M.b*RP.x+M.d*RP.y+M.f; cell.gx=M.a*RP.x+M.c*RP.y+M.e; cell.carW=carW; cell.clipped=!!RP.clip && (M.d*RP.clip+M.f)<cell.dy+cell.dh-1; cell.cz=czr; car._cell=cell; car._inst=inst; } }
-  NR_GL.end(); }
+  prPrepass(w,h,base,M); NR_GL.end(); }
 /* our car: placed where the chase camera puts it (bottom centre, the keyed start / finish cameras move it through S.cv), at the size playerDestW() */
 function glPlayer(w,h,sf,M0){ const inst=glInst(PCAR); GLC.pinst=inst; if (!inst) return; const meta=inst.model.meta;
   const cw=playerDestW(), ch=cw*150/240, k1=h/(2*CAM_H), baseY0=h-bottomPad()-ch-h*0.028, baseY=baseY0+(S.camAir.x-S.airH)*k1, cx=w/2, gY=baseY0+ch*0.98, Yb=baseY+ch*0.98;
@@ -1761,7 +1762,30 @@ function impBlitCell(cell){ const I=S.imp, k=I.t, on=k<0.03?k/0.03:1; const sq=(
 /* the loading screen: holds input until every shipped mesh, texture and shader is on the GPU, so nothing is prepared during a race */
 const NRP={busy:!!window.NR_GL, then:null};
 if (window.NR_GL){ const box=document.getElementById('nrLoad'), bar=document.getElementById('nrLoadBar'), block=e=>{ if (NRP.busy) e.stopImmediatePropagation(); };
-  window.addEventListener('keydown',block,true); NR_GL.pack.onP=v=>{ bar.style.width=Math.round(v*100)+'%'; }; NR_GL.preload().then(()=>{ NRP.busy=false; window.removeEventListener('keydown',block,true); box.remove(); if (NRP.then){ const f=NRP.then; NRP.then=null; f(); } }); } else document.getElementById('nrLoad').remove();
+  window.addEventListener('keydown',block,true); NR_GL.pack.onP=v=>{ bar.style.width=Math.round(v*70)+'%'; }; const pp_=window.NR_PROPS?NR_PROPS.preload(v=>{ bar.style.width=Math.round(70+v*30)+'%'; }):NR_GL.preload(); pp_.then(()=>{ prReady(); NRP.busy=false; window.removeEventListener('keydown',block,true); box.remove(); if (NRP.then){ const f=NRP.then; NRP.then=null; f(); } }); } else document.getElementById('nrLoad').remove();
+// ------------------------------------------------------------ world meshes (gfx/props-gl.js): near props live, far ones as images of the same mesh
+let PRSP=null, PRFX=null; const PRFL={_pc:null};
+function prSolid(){ if (!window.NR_PROPS || !NR_PROPS.ready()) return; const B=NR_PROPS.bakeInto; A.palm.forEach((c,i)=>B(c,'palm'+i)); A.cactus.forEach((c,i)=>B(c,'cactus'+i)); A.rock.forEach((c,i)=>B(c,'rock'+i)); A.pine.forEach((c,i)=>B(c,'pine'+i)); B(A.bush,'bush'); B(A.lamp,'lamp'); B(A.lighthouse,'lighthouse'); A.pylon.forEach((c,i)=>B(c,'pylon'+i)); B(A.moon,'moon'); A.cloud.forEach((c,i)=>B(c,'cloud'+i));
+  const R_=NR_PROPS.reg; for (const c of A.bill) R_(c,'bill'); R_(A.billDyn,'bill'); for (const c of A.signs) R_(c,'sign'); R_(A.gantry,'sign'); R_(A.cpSign,'sign'); for (const c of A.chev) R_(c,'chev'); R_(A.stand,'stand'); for (const c of [...A.bill,A.billDyn,...A.signs,A.gantry,A.cpSign,...A.chev,A.stand,...A.banner]) NR_PROPS.faceTex(c); }
+/* per theme: the painted canvases that become faces of meshes go to the GPU while the track is built, never during the race */
+function prWorld(){ if (!window.NR_PROPS || !NR_PROPS.ready()) return; const R_=NR_PROPS.reg, F=NR_PROPS.faceTex; if (WD.pineSnow) WD.pineSnow.forEach((c,i)=>R_(c,'pine'+i,{snow:0.9})); if (WD.rockSnow) WD.rockSnow.forEach((c,i)=>R_(c,'rock'+i,{snow:0.9})); if (WD.mesa) for (const c of WD.mesa){ R_(c,'mesa'); F(c); }
+  for (const B of WD.bldg) F(B.c); for (const B of WD.boatV) for (const c of B.c) F(c); if (WD.ovF) F(WD.ovF); if (WD.portal) F(WD.portal); if (WD.cliff) F(WD.cliff); for (const sg of segments) for (const sp of sg.sprites) sp._pr=undefined; }
+function prRes(sp){ if (sp._pr!==undefined) return sp._pr; let r=null; const I=NR_PROPS.item;
+  switch(sp.fx){ case 'bldg': { const B=WD.bldg[sp.v]; if (B){ const a=B.H/B.w; r={it:I(a>1.75?'bldgC':a>1.25?'bldgB':'bldgA'),tex:B.c,a,ww:sp.worldW,flat:1}; } break; }
+    case 'boat': { const B=WD.boatV[sp.v]; if (B) r={it:I('boat'+(sp.v%3)),tex:B.c[sp.dir>0?0:1],a:B.h/B.w,ww:sp.worldW,flat:1}; break; }
+    case 'banner': r={it:I('banner'),tex:A.banner[sp.v%A.banner.length],a:0.36,ww:sp.worldW,flat:1}; break;
+    case 'ovF': if (WD.ovF) r={it:I('overpass'),tex:WD.ovF,a:WD.ovF.height/WD.ovF.width,ww:OV_HW*2*ROADW,flat:1}; break;
+    case 'portal': if (WD.portal) r={it:I('portal'),tex:WD.portal,a:WD.portal.height/WD.portal.width,ww:14000,flat:1}; break;
+    case 'fall': if (WD.cliff) r={it:I('cliff'),tex:WD.cliff,a:620/360,ww:sp.worldW,flat:1}; break;
+    case undefined: if (sp.img){ const m=NR_PROPS.PR.map.get(sp.img); if (m){ const it=I(m.id); if (it) r={it,tex:it.kind==='tex'?sp.img:null,a:sp.img.height/sp.img.width,ww:sp.worldW,flat:it.kind==='tex'?1:0,snow:m.snow||0}; } } break; }
+  if (r && !r.it) r=null; sp._pr=r; return r; }
+/* the nearest props of this frame are drawn as meshes, in the same GL pass as the cars (a fixed budget, so the cost never grows with the scene) */
+function prPrepass(w,h,base,M){ if (!window.NR_PROPS || !NR_PROPS.ready()) return; NR_PROPS.begin(); const max=(w<600?5:10)*(GQ<0.7?0.5:1), minW=w<600?34:52, NS=segments.length; let cnt=0;
+  for (let n=1;n<70 && cnt<max;n++){ const seg=segments[(base.i+n)%NS], list=seg.sprites; if (!list.length) continue; const p=seg.p1; if (p.cz<=0) continue;
+    for (let i=0;i<list.length && cnt<max;i++){ const sp=list[i], r=prRes(sp); if (!r) continue; const s=p.sc*w/2, dw=r.ww*s; if (dw<minW || dw>w*0.82) continue; const dh=dw*r.a; if (dh>h*1.15) continue; const X=p.sx+p.sc*(sp.offset||0)*ROADW*w/2; if (X+dw<0 || X-dw>w || p.sy<0 || (seg.clip && p.sy-dh>=seg.clip)) continue;
+      const yaw=r.flat?0:clamp((X-w/2)/(w/2),-1,1)*0.42; if (NR_PROPS.put(sp,r.it,r.tex?NR_PROPS.faceTex(r.tex):null,dw,dh,M,yaw,S.time+(seg.i%17)*0.37,r.snow)) cnt++; } }
+  if (S.nitroVis>0.05 && GLC.pcell && !isCk()){ const it=NR_PROPS.item('flame'), fw=GLC.pcell.cw*0.15, fh=fw*it.asp; NR_PROPS.put(PRFL,it,null,fw,fh,M,0,S.time,0); } }
+function prReady(){ if (!window.NR_PROPS || !NR_PROPS.ready() || !W) return; resize(); WD.theme=null; const t=S.mode==='menu'?opts.theme:S.theme; setTrack(t,S.mode==='menu'?undefined:S.seed); if (S.mode==='menu'){ buildCars(); setPalette(0.18); } }
 function glReady(){ const st=NR_GL.G; let n=0,t=0; for (const k in st.models){ n++; } t=n+Object.keys(st.pending).length; return {models:n, total:t, pending:Object.keys(st.pending).length}; }
 // ============================================================ update
 function update(dt){
@@ -2183,7 +2207,7 @@ function segThings(n,gN,w,base){
   if (seg.cars.length){ const p1=seg.p1,p2=seg.p2; for (const car of seg.cars){ const pct=(car.z%SEG)/SEG; const cz=p1.cz+(p2.cz-p1.cz)*pct; if (cz<=CAMD*20 || (S.duo && car.duo===S.duoI)) continue;
       // perspective-correct position inside the segment (no size pulsing as a car crosses segments)
       const sc=CAMD/cz, q=(sc-p1.sc)/(p2.sc-p1.sc); drawSprite(car.img,car.worldW||600,sc,p1.sx+(p2.sx-p1.sx)*q,p1.sy+(p2.sy-p1.sy)*q,car.offset,seg.clip,w,fogA,car,n); } }
-  for (const sp of seg.sprites){ if (sp.fx && drawWorldFx(sp,seg,n,fogA,w)) continue; drawSprite(sp.img,sp.worldW,seg.p1.sc,seg.p1.sx,seg.p1.sy,sp.offset,seg.clip,w,fogA,null,n); if (sp.fx2) drawWorldFxAfter(sp,seg,n,fogA,w); }
+  for (const sp of seg.sprites){ if (sp.fx && drawWorldFx(sp,seg,n,fogA,w)) continue; PRSP=sp; drawSprite(sp.img,sp.worldW,seg.p1.sc,seg.p1.sx,seg.p1.sy,sp.offset,seg.clip,w,fogA,null,n); PRSP=null; if (sp.fx2) drawWorldFxAfter(sp,seg,n,fogA,w); }
   if (seg.tunnel && seg.vis && n<DRAW-1) drawTunnelLights(seg,n);
 }
 function project(p,camX,camY,camZ,w,h){ const cz=p.z-camZ; p.cz=cz; const sc=CAMD/cz; p.sc=sc; p.sx=w/2 - sc*camX*w/2; p.sy=h/2+HOR_OFF - sc*(p.y-camY)*h/2; p.sw=sc*ROADW*w/2; }
@@ -2356,7 +2380,7 @@ function drawBldg(sp,seg,n,alpha,w){ const B=WD.bldg[sp.v]; if (!B) return; cons
   const far=n>(GQ<0.8?50:DRAW)?seg:segments[(seg.i+sp.d)%segments.length], q=far.p1; if (n+sp.d<DRAW && q.sc>0 && q.sc<p.sc){ const sd=sp.offset>0?-1:1; const xin=sp.offset*ROADW+sd*sp.worldW/2; const X0=p.sx+p.sc*xin*w/2, X1=q.sx+q.sc*xin*w/2;
     if ((sd<0 && X1<X0) || (sd>0 && X1>X0)){ const N=6; ctx.globalAlpha=alpha; for (let i=0;i<N;i++){ const t0=i/N, t1=(i+1)/N; const xa=X0+(X1-X0)*t0, xb=X0+(X1-X0)*t1, sa=p.sc+(q.sc-p.sc)*t0, ya=p.sy+(q.sy-p.sy)*t0; const ha=sp.worldW*sa*w/2*B.H/B.w; const x0=Math.min(xa,xb), ww=Math.abs(xb-xa)+0.6; if (ww<0.5) continue; { const sg2=segments[(seg.i+Math.round(sp.d*t0))%segments.length].p1, e=sd<0?sg2.sx+sg2.sw*1.35:sg2.sx-sg2.sw*1.35; if (sd<0 ? x0<e : x0+ww>e) continue; }   /* never across the road where it bends toward the wall */
       ctx.drawImage(B.side,Math.floor(t0*160),0,Math.max(1,160/N),B.H,x0,ya-ha,ww,ha); } } }
-  ctx.globalAlpha=alpha; if (clip && dy+dh>clip){ const vis=clip-dy; ctx.drawImage(B.c,0,0,B.w,B.H*vis/dh,dx,dy,dw,vis); } else ctx.drawImage(B.c,dx,dy,dw,dh);
+  ctx.globalAlpha=alpha; if (window.NR_PROPS && NR_PROPS.blit(ctx,sp,dx,dy,dw,dh,clip,alpha)) ctx.globalAlpha=alpha; else if (clip && dy+dh>clip){ const vis=clip-dy; ctx.drawImage(B.c,0,0,B.w,B.H*vis/dh,dx,dy,dw,vis); } else ctx.drawImage(B.c,dx,dy,dw,dh);
   const win=Math.max(pal.win,S.tunnelK*0)*1; if (win>0.05){ ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=alpha*Math.min(1,win*0.9); if (clip && dy+dh>clip){ const vis=clip-dy; ctx.drawImage(B.lit,0,0,B.w,B.H*vis/dh,dx,dy,dw,vis); } else ctx.drawImage(B.lit,dx,dy,dw,dh); ctx.globalCompositeOperation='source-over'; }
   // neon sign hung on the facade, toward the road
   if (sp.neon!=null && n<120){ const N=WD.neon[sp.neon], sw=dw*(N.vert?0.16:0.5), sh=sw*N.h/N.w; const sx=N.vert?(sp.offset>0?dx+dw*0.08:dx+dw*0.92-sw):dx+dw*0.25, sy=dy+dh*(N.vert?0.3:0.55)-sh/2; if (!(clip && sy+sh>clip)){
@@ -2380,7 +2404,7 @@ function drawLighthouseFx(sp,seg,n,alpha,w){ const p=seg.p1, s=p.sc*w/2; const X
   if (Math.abs(c)<0.25){ const g=dw*3*(1-Math.abs(c)/0.25); ctx.globalAlpha=alpha*k; ctx.drawImage(A.glowWarm,hx-g/2,hy-g/2,g,g); } ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; }
 // waterfall: cliff with a scrolling water column and foam at its foot
 function drawFallFx(sp,seg,n,alpha,w){ const p=seg.p1, s=p.sc*w/2; const X=p.sx+p.sc*sp.offset*ROADW*w/2; const dw=sp.worldW*s; if (dw<3) return; const dh=dw*620/360; const dx=X-dw/2, dy=p.sy-dh; if (seg.clip && dy>seg.clip) return;
-  ctx.globalAlpha=alpha; ctx.drawImage(WD.cliff,dx,dy,dw,dh); const fx=dx+dw*0.42, fw=dw*0.2, top=dy+dh*0.07, fh=dh*0.9; const off=(S.time*420)%512;
+  ctx.globalAlpha=alpha; if (!(window.NR_PROPS && NR_PROPS.blit(ctx,sp,dx,dy,dw,dh,seg.clip,alpha))) ctx.drawImage(WD.cliff,dx,dy,dw,dh); ctx.globalAlpha=alpha; const fx=dx+dw*0.42, fw=dw*0.2, top=dy+dh*0.07, fh=dh*0.9; const off=(S.time*420)%512;
   ctx.drawImage(WD.fall,0,512-off,64,off,fx,top,fw,fh*off/512); ctx.drawImage(WD.fall,0,0,64,512-off,fx,top+fh*off/512,fw,fh*(512-off)/512);
   ctx.globalAlpha=alpha*0.9; const f2=fw*2.2+Math.sin(S.time*7)*fw*0.1; ctx.drawImage(WD.foam,fx+fw/2-f2/2,p.sy-fw*0.9,f2,fw*1.1); ctx.globalAlpha=1; }
 // dust devil: three puffs orbiting a rising axis, keyed spin (anim/keys.js DUST_DEVIL)
@@ -2390,7 +2414,7 @@ function drawDustFx(sp,seg,n,alpha,w){ const p=seg.p1, s=p.sc*w/2; const X=p.sx+
 function drawStandFx(sp,seg,n,alpha,w){ if (!A.standUp || n>90) return; const p=seg.p1, s=p.sc*w/2; const dw=sp.worldW*s, dh=dw*420/640; const X=p.sx+p.sc*sp.offset*ROADW*w/2, dx=X-dw/2, dy=p.sy-dh; if (seg.clip && dy+dh*0.3>seg.clip) return; const B=NRK.CROWD_BEAT||[0,1,1,0]; const up=B[((S.time*6+sp.offset*3)|0)%B.length]; if (!up) return; ctx.globalAlpha=alpha; const vis=seg.clip?Math.min(dh,seg.clip-dy):dh; if (vis>2) ctx.drawImage(A.standUp,0,0,640,420*vis/dh,dx,dy,dw,vis); ctx.globalAlpha=1; }
 // banners on poles beside the start: cloth drawn in vertical slices displaced by a travelling wave
 function drawBannerFx(sp,seg,n,alpha,w){ if (n>80) return; const p=seg.p1, s=p.sc*w/2; const dw=sp.worldW*s, dh=dw*0.36; const X=p.sx+p.sc*sp.offset*ROADW*w/2, pole=dh*3.2; if (seg.clip && p.sy-pole*0.5>seg.clip) return; const dx=X-dw/2, top=p.sy-pole;
-  ctx.globalAlpha=alpha; ctx.fillStyle='#d8dcf0'; ctx.fillRect(dx-Math.max(1,dw*0.02),top,Math.max(1.5,dw*0.04),pole); const N=10, img=A.banner[sp.v%A.banner.length]; for (let i=0;i<N;i++){ const t=i/N, amp=dh*0.12*t, y=top+Math.sin(S.time*7-i*0.8+sp.offset)*amp; const shd=0.85+0.15*Math.cos(S.time*7-i*0.8); ctx.globalAlpha=alpha*shd; ctx.drawImage(img,i*img.width/N,0,img.width/N,img.height,dx+t*dw,y,dw/N+0.7,dh); } ctx.globalAlpha=1; }
+  ctx.globalAlpha=alpha; ctx.fillStyle='#d8dcf0'; ctx.fillRect(dx-Math.max(1,dw*0.02),top,Math.max(1.5,dw*0.04),pole); if (window.NR_PROPS && NR_PROPS.blit(ctx,sp,dx,top,dw,dh,seg.clip,alpha)){ ctx.globalAlpha=1; return; } const N=10, img=A.banner[sp.v%A.banner.length]; for (let i=0;i<N;i++){ const t=i/N, amp=dh*0.12*t, y=top+Math.sin(S.time*7-i*0.8+sp.offset)*amp; const shd=0.85+0.15*Math.cos(S.time*7-i*0.8); ctx.globalAlpha=alpha*shd; ctx.drawImage(img,i*img.width/N,0,img.width/N,img.height,dx+t*dw,y,dw/N+0.7,dh); } ctx.globalAlpha=1; }
 function drawWorldFx(sp,seg,n,alpha,w){ switch(sp.fx){ case 'bldg': drawBldg(sp,seg,n,alpha,w); return true; case 'boat': drawBoatFx(sp,seg,n,alpha,w); return true; case 'ovB': drawOverpassB(sp,seg,n,alpha,w); return true; case 'ovF': drawOverpassF(sp,seg,n,alpha,w); return true; case 'portal': drawPortalFx(sp,seg,n,alpha,w); return true; case 'pier': return true; case 'fall': drawFallFx(sp,seg,n,alpha,w); return true; case 'dust': drawDustFx(sp,seg,n,alpha,w); return true; case 'banner': drawBannerFx(sp,seg,n,alpha,w); return true; } return false; }
 function drawWorldFxAfter(sp,seg,n,alpha,w){ switch(sp.fx2){ case 'lamp': drawLampFx(sp,seg,n,alpha,w); break; case 'light': drawLighthouseFx(sp,seg,n,alpha,w); break; case 'stand': drawStandFx(sp,seg,n,alpha,w); break; } }
 // ============================================================ world detail II (ours): sea and boats on the coast, overpasses in the city,
@@ -2481,7 +2505,7 @@ function seaDraw(seg,n,x1,y1,w1,x2,y2,w2,w){ const sd=seg.sea<0?-1:1, so=sd*seg.
     if (seg.i%4===0 && n<70 && WD.glints && pal.night<0.9){ const L=x1+sd*w1*(so+0.4), R=x1+sd*w1*(so+5); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=(1-pal.night)*0.35*(1-n/70); ctx.drawImage(WD.glints,0,((seg.i*5)%48),512,16,Math.min(L,R),y2,Math.abs(R-L),y1-y2+1); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; } } }
 /* a world-space image standing on a segment: offset in road half-widths, width in world units; clipped by the crest in front */
 function fxImg(img,seg,off,worldW,alpha,w,lift,parts){ const p=seg.p1, s=p.sc*w/2, dw=worldW*s; if (dw<2) return null; const dh=dw*img.height/img.width, X=p.sx+p.sc*off*ROADW*w/2, dx=X-dw/2, dy=p.sy-dh-(lift||0)*s; const clip=seg.clip; if (clip && dy>=clip) return null;
-  FXR.x=dx; FXR.y=dy; FXR.w=dw; FXR.h=dh; ctx.globalAlpha=alpha;
+  FXR.x=dx; FXR.y=dy; FXR.w=dw; FXR.h=dh; ctx.globalAlpha=alpha; if (PRFX && window.NR_PROPS && NR_PROPS.blit(ctx,PRFX,dx,dy,dw,dh,clip,alpha)) return FXR;
   if (parts){ for (let i=0;i<parts.length;i+=4) litPart(img,FXR,parts[i],parts[i+1],parts[i+2],parts[i+3],clip); return FXR; }
   if (clip && dy+dh>clip){ const vis=clip-dy; ctx.drawImage(img,0,0,img.width,img.height*vis/dh,dx,dy,dw,vis); } else ctx.drawImage(img,dx,dy,dw,dh); return FXR; }
 const OV_PARTS=[0,0,1600,194, 26,194,116,326, 1458,194,116,326], PORTAL_PARTS=[0,0,629,560, 1419,0,629,560, 629,0,790,282, 629,282,72,72, 1347,282,72,72];
@@ -2494,7 +2518,7 @@ function drawBoatFx(sp,seg,n,alpha,w){ const B=WD.boatV[sp.v]; if (!B) return; c
   const dh=dw*B.h/B.w, X=p.sx+p.sc*o*ROADW*w/2, bob=Math.sin(S.time*1.3+sp.ph*9)*dh*0.015, dx=X-dw/2, wy=p.sy-dh*0.06+bob, dy=wy-dh*B.wl/B.h; const clip=seg.clip; if (clip && wy-dh*0.3>=clip) return;
   const fi=sp.dir>0?0:1, vis=clip?Math.min(dh,clip-dy):dh; if (vis<2) return;
   ctx.globalAlpha=fade*0.8; const ww=dw*1.25, wh=dw*0.12; ctx.drawImage(WD.wake[fi],sp.dir>0?X-ww:X,wy-wh*0.5,ww,wh);
-  ctx.globalAlpha=fade; ctx.drawImage(B.c[fi],0,0,B.w,B.h*vis/dh,dx,dy,dw,vis);
+  ctx.globalAlpha=fade; if (!(window.NR_PROPS && NR_PROPS.blit(ctx,sp,dx,dy,dw,dh,clip,fade))) ctx.drawImage(B.c[fi],0,0,B.w,B.h*vis/dh,dx,dy,dw,vis);
   if (pal.night>0.05){ ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=fade*pal.night; ctx.drawImage(B.lit[fi],0,0,B.w,B.h*vis/dh,dx,dy,dw,vis); ctx.globalCompositeOperation='source-over'; }
   ctx.globalAlpha=1; }
 // overpass: the deck's underside is laid from the far edge to the nearest drawn segment (it stays overhead while we pass under it),
@@ -2504,9 +2528,9 @@ function drawOverpassB(sp,seg,n,alpha,w){ if (!WD.ovF) return; const N=segments.
   const h1=near.sc*OV_H*w/2, h2=far.sc*OV_H*w/2, x1=near.sw*OV_HW, x2=far.sw*OV_HW; ctx.globalAlpha=alpha; poly(near.sx-x1,near.sy-h1,near.sx+x1,near.sy-h1,far.sx+x2,far.sy-h2,far.sx-x2,far.sy-h2,'#17132a');
   for (let j=n-1;j>k;j--){ const q=segments[(seg.i-(n-j)+N)%N].p1; if (!(q.cz>CAMD)) continue; const hq=q.sc*OV_H*w/2, xq=q.sw*OV_HW, t=Math.max(1,q.sw*0.03); ctx.fillStyle='#2a2444'; ctx.fillRect(q.sx-xq,q.sy-hq-t,xq*2,t*2); if (pal.lamp>0.05 && (j&1)){ ctx.globalAlpha=alpha*pal.lamp; ctx.fillStyle='#fff2c8'; ctx.fillRect(q.sx-xq*0.5,q.sy-hq+t,xq,Math.max(1,t*0.6)); ctx.globalAlpha=alpha; } }
   ctx.globalAlpha=1; }
-function drawOverpassF(sp,seg,n,alpha,w){ if (!WD.ovF) return; const R=fxImg(WD.ovF,seg,0,OV_HW*2*ROADW,alpha,w,0,OV_PARTS); if (!R) return; const lk=Math.max(pal.lamp,pal.night*0.8); if (lk>0.05){ const L=WD.ovLit, c=seg.clip; ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=alpha*lk;
+function drawOverpassF(sp,seg,n,alpha,w){ if (!WD.ovF) return; PRFX=sp; const R=fxImg(WD.ovF,seg,0,OV_HW*2*ROADW,alpha,w,0,OV_PARTS); PRFX=null; if (!R) return; const lk=Math.max(pal.lamp,pal.night*0.8); if (lk>0.05){ const L=WD.ovLit, c=seg.clip; ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=alpha*lk;
     litPart(L,R,0,120,1600,13,c); litPart(L,R,240,56,262,96,c); litPart(L,R,980,54,300,100,c); litPart(L,R,0,154,1600,12,c); ctx.globalCompositeOperation='source-over'; } ctx.globalAlpha=1; }
-function drawPortalFx(sp,seg,n,alpha,w){ if (!WD.portal) return; const R=fxImg(WD.portal,seg,0,14000,alpha,w,0,PORTAL_PARTS); if (!R) return; const lk=0.4+0.6*Math.max(pal.lamp,pal.night), L=WD.portalLit, c=seg.clip; ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=alpha*lk;
+function drawPortalFx(sp,seg,n,alpha,w){ if (!WD.portal) return; PRFX=sp; const R=fxImg(WD.portal,seg,0,14000,alpha,w,0,PORTAL_PARTS); PRFX=null; if (!R) return; const lk=0.4+0.6*Math.max(pal.lamp,pal.night), L=WD.portalLit, c=seg.clip; ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=alpha*lk;
   litPart(L,R,850,166,350,64,c); litPart(L,R,600,258,20,20,c); litPart(L,R,1428,258,20,20,c); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; }
 // textured ground strip for one segment (perspective along the road and across it)
 let GQ=1;   /* detail budget: follows the shared adaptive quality (render resolution drops first, then these extras) */
@@ -2553,7 +2577,8 @@ function drawSprite(img,worldW,sc,sx,sy,offset,clipY,w,alpha,car,n){
   if (car && n<120 && Math.max(pal.night,S.tunnelK)>0.3 && dw>10){ ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=alpha*0.3*Math.max(pal.night,S.tunnelK); ctx.drawImage(fx2().hg,dx-dw*0.3,dy-dh*0.3,dw*1.6,dh*0.75); ctx.globalCompositeOperation='source-over'; }   /* headlight spill on the road ahead of each car */
   if (car && car.nitroT>0 && dw>12){ const fw=dw*0.12, fh=dh*0.5; ctx.globalAlpha=alpha*0.9; ctx.drawImage(A.flame,dx+dw*0.3-fw/2,dy+dh*0.8,fw,fh); ctx.drawImage(A.flame,dx+dw*0.7-fw/2,dy+dh*0.8,fw,fh); }
   ctx.globalAlpha=alpha; const struck = car && S.imp.car===car; if (struck) impCapture(dx,dy,dw,dh,car);
-  if (clipH>0) ctx.drawImage(img,0,0,img.width,img.height-img.height*clipH/dh,dx,dy,dw,dh-clipH);
+  if (!car && PRSP && window.NR_PROPS && NR_PROPS.blit(ctx,PRSP,dx,dy,dw,dh,clipY,alpha)) { ctx.globalAlpha=alpha; }
+  else if (clipH>0) ctx.drawImage(img,0,0,img.width,img.height-img.height*clipH/dh,dx,dy,dw,dh-clipH);
   else if (struck && S.imp.t<IMP_T) impDrawCar(img,dx,dy,dw,dh);
   else if (car && car.rival!=null && Math.abs(car.lean||0)>0.004){ ctx.save(); ctx.translate(dx+dw/2,dy+dh); ctx.rotate(car.lean); ctx.drawImage(img,-dw/2,-dh,dw,dh); ctx.restore(); }
   else ctx.drawImage(img,dx,dy,dw,dh);
@@ -2607,6 +2632,7 @@ function drawPlayer3D(w,h,sf){ const cell=GLC.pcell, inst=GLC.pinst; if (!cell |
   if (S.nitroVis>0.02){ let fl=S.nitroOn?1:S.nitroVis*0.4, L=1, Wd=1, core=0, ring=0; if (S.nitroOn){ if (S.nitIgn<0.4){ sample(KA.nitro,S.nitIgn,KN); L=KN[0]; Wd=KN[1]; core=KN[2]; ring=KN[4]; } else { L=NITRO_FLICK[((S.nitIgn*24)|0)%8]; Wd=1/Math.sqrt(L); core=0.2; } }
     ctx.globalAlpha=Math.min(1,S.nitroVis*1.4); const ne=an.exhaust.length;
     for (const e of an.exhaust){ glAnchor(inst,e,GLA); const fw=cw*(ne>2?0.11:0.15)*fl*Wd, fh=ch*(0.5+1.3*fl)*L, px=GLA[0]+S.steer.x*4, py=GLA[1]-fw*0.25; ctx.drawImage(A.flame, px-fw/2, py, fw, fh);
+      if (PRFL._pc && PRFL._pc.frame===NR_PROPS.PR.frame){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.translate(px,py+fh*0.86); ctx.scale(1,-1); NR_PROPS.blit(ctx,PRFL,-fw*0.34,0,fw*0.68,fh*0.86,0,Math.min(1,S.nitroVis)*0.8); ctx.restore(); ctx.globalAlpha=Math.min(1,S.nitroVis*1.4); }
       if (core>0.05){ ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=core; ctx.drawImage(A.flame, px-fw*0.3, py, fw*0.6, fh*0.55); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=Math.min(1,S.nitroVis*1.4); }
       if (ring>0.02){ ctx.strokeStyle='rgba(180,250,255,'+ring.toFixed(3)+')'; ctx.lineWidth=Math.max(1,cw*0.008); const rr_=cw*0.05*(1.6-ring); ctx.beginPath(); ctx.ellipse(px,py+ch*0.03,rr_,rr_*0.45,0,0,6.283); ctx.stroke(); } }
     ctx.globalAlpha=1; }
@@ -2845,7 +2871,7 @@ function syncUI(){
 function resize(){
   { const sp=document.getElementById('safe'); if (sp){ const cs=getComputedStyle(sp); SAFE.t=parseFloat(cs.paddingTop)||0; SAFE.r=parseFloat(cs.paddingRight)||0; SAFE.b=parseFloat(cs.paddingBottom)||0; SAFE.l=parseFloat(cs.paddingLeft)||0; } }
   DPR=Math.min(2,Arcade.gfx.dpr(window.innerWidth,window.innerHeight)); W=window.innerWidth; H=window.innerHeight; { const cap=4.6e6; if (W*H*DPR*DPR>cap) DPR=Math.sqrt(cap/(W*H)); }   /* pixel budget: a 120 Hz retina laptop gets ~1.7x, sharp enough with the cars rendered at device size, and the fill rate holds */ canvas.width=Math.round(W*DPR); canvas.height=Math.round(H*DPR); if (glInit()) NR_GL.setSize(canvas.width,Math.round(canvas.height*2));   /* cells for every visible car: two screens tall covers a near car passing beside us plus the field */
-  const pt=pal.step>=0?pal.step/PAL_STEPS:0; CKC.clear(); buildSized(); setFonts(); setPalette(pt);
+  const pt=pal.step>=0?pal.step/PAL_STEPS:0; CKC.clear(); buildSized(); prSolid(); setFonts(); setPalette(pt);
 }
 // input
 const keymap={ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right',ArrowDown:'brake',s:'brake',S:'brake',' ':'brake',n:'nitro',N:'nitro',Shift:'nitro',ArrowUp:'nitro',w:'accel',W:'accel'};

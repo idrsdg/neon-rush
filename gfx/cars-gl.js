@@ -278,5 +278,5 @@ function blit(ctx,cell,alpha,flipAt,scaleY){ if (!cell || !cell.ok) return; ctx.
 function end(){ if (G.ok){ G.ms=performance.now()-G.t0; const u=G.shelfY+G.shelfH; if (u>G.usedMax) G.usedMax=u; } }
 function stats(){ const ms=[]; for (const k in G.models) ms.push(k+':'+Math.round(G.models[k].bakeMs||0)+'/'+Math.round(G.models[k].ms||0)); return {ok:G.ok, err:G.err, msaa:!!G.msaa, models:ms, pending:Object.keys(G.pending), insts:G.insts.size, drawn:G.drawn, dropped:G.dropped, shrunk:G.shrunk||0, W:G.W, H:G.H, usedMax:G.usedMax, ms:G.ms}; }
 function anyModel(name){ for (const k in G.models) if (k.split('@')[0]===name) return k; return null; }
-preload(); return {preload, pack:PK, init, setSize, setEnv, model, anyModel, instance, dropModel, dropInst, begin, render, blit, end, stats, G, onModel:fn=>G.onModel.push(fn), canvas:()=>G.canvas, ready:k=>!!G.models[k]};
+preload(); return {preload, pack:PK, alloc, init, setSize, setEnv, model, anyModel, instance, dropModel, dropInst, begin, render, blit, end, stats, G, onModel:fn=>G.onModel.push(fn), canvas:()=>G.canvas, ready:k=>!!G.models[k]};
 })();
