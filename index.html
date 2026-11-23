@@ -200,6 +200,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
+<div id="nrLoad" role="progressbar" aria-label="Loading" style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:#0a0620"><div style="width:min(280px,70vw);height:4px;border-radius:2px;background:rgba(255,255,255,.14);overflow:hidden"><div id="nrLoadBar" style="width:0;height:100%;background:#19f0ff;transition:width .12s linear"></div></div></div>
 <div id="safe" style="position:fixed;inset:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)"></div>
 <a id="more" href="../games/" style="position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:5;display:none;font:900 15px ui-rounded,system-ui,sans-serif;color:#fff;text-decoration:none;background:linear-gradient(#7a55ff,#5a3ad8);border:2px solid #fff;border-radius:999px;padding:9px 16px;box-shadow:0 4px 0 #2a1a7a">MORE GAMES</a>
 <button id="pauseBtn" aria-label="Pause"><i></i><i></i></button>
@@ -313,7 +314,7 @@
 <script src="anim/keys.js"></script>
 <script src="three.min.js"></script>
 <script src="gfx/car3d.js?v=6"></script>
-<script src="gfx/cars-gl.js?v=1"></script>
+<script src="gfx/cars-gl.js?v=2"></script>
 <script>
 (() => {
 'use strict';
@@ -1665,7 +1666,7 @@ function bottomPad(){ return touchMode ? 108 : 22; }
 // Until a model is baked (first visit, a few seconds) the older flat sprites are drawn, so nothing ever waits.
 const C3COL={h:['#c9ccd6','#8a8f9e','#3a4256','#7a6a58','#7a3a40','#e6e2d6'], v:['#e8e8e8','#b8b0a0','#5a6a7a'], t:['#9aa0aa','#5a6a8a','#7a5a4a'], b:['#6a6e7a','#3a4a6a','#8a5a3a']};   /* traffic is muted: the five rivals keep the only bold liveries */
 const C3MOD={h:'hatch',v:'van',t:'truck',b:'bike'}, PMODEL=['comet','titan','arrow'];
-const GLC={on:false, atlas:0, M:null, Minv:null, P:{w:0,h:0,CAMD:1,HOR:0,M:null,pos:[0,0,0],upm:1,yaw:0,pitch:0,roll:0,body:{dy:0,pitch:0,roll:0,sx:1,sy:1},wheels:{spin:0,steer:0,dy:[0,0,0,0,0,0,0,0,0,0]},shadowDy:0,shadowA:0.7,lights:{run:0,brake:0,indL:0,indR:0,head:0},blur:0,alpha:1,clipY:null,devW:0,devH:0}, pcell:null, pinst:null, pstate:null, tt:null};
+const GLC={on:false, atlas:0, M:null, Minv:null, P:{w:0,h:0,CAMD:1,HOR:0,M:null,pos:[0,0,0],upm:1,yaw:0,pitch:0,roll:0,body:{dy:0,pitch:0,roll:0,sx:1,sy:1},wheels:{spin:0,steer:0,dy:[0,0,0,0,0,0,0,0,0,0]},shadowDy:0,shadowA:0.7,lights:{run:0,brake:0,indL:0,indR:0,head:0},anim:{t:0,speed:0,brake:0,throttle:0,hit:0},blur:0,alpha:1,clipY:null,devW:0,devH:0}, pcell:null, pinst:null, pstate:null, tt:null};
 function c3key(kind,i){ const k=kind==='car'?'h':kind[0]; return k+(i%C3COL[k].length); }
 function glInit(){ if (GLC.on || GLC.failed) return GLC.on; if (!window.NR_GL || !window.THREE){ GLC.failed=true; return false; } GLC.on=NR_GL.init(); if (!GLC.on) GLC.failed=true; return GLC.on; }
 /* atlas width for the player's models: the rear face of the car at about one texel per device pixel */
@@ -1714,6 +1715,7 @@ function glPrepass(w,h,base,sf,ck){ if (!GLC.on) return; NR_GL.begin(); NR_GL.se
       const sfc=car.speed/MAX_SPEED; P.body.dy=-Math.abs(Math.sin(S.time*(8+(car.z%7))+car.z*0.013))*0.005*clamp(sfc*1.5,0,1); P.body.pitch=0; P.body.roll=0; P.body.sx=1; P.body.sy=1;
       P.wheels.spin=g.spin; P.wheels.steer=clamp(g.y*2.2,-0.45,0.45); for (let i=0;i<10;i++) P.wheels.dy[i]=0; P.shadowDy=0; P.shadowA=0.72*(1-0.45*nt);
       P.lights.run=nt*0.6; P.lights.brake=g.br; P.lights.indL=car.ind<0?blink:0; P.lights.indR=car.ind>0?blink:0; P.lights.head=0;
+      P.anim.t=S.time+car.z*0.0007; P.anim.speed=clamp(sfc,0,1); P.anim.brake=g.br; P.anim.throttle=car.nitroT>0?1:clamp(acc/(MAX_SPEED*0.4),0,1); P.anim.hit=S.imp.car===car&&S.imp.t<0.6?1-S.imp.t/0.6:0;
       P.blur=clamp((sfc-0.05)/0.07,0,1); P.alpha=glFog(n); P.clipY=RP.clip; P.M=M;
       const cell=NR_GL.render(inst,P); if (!cell) continue; cell.gy=M.b*RP.x+M.d*RP.y+M.f; cell.gx=M.a*RP.x+M.c*RP.y+M.e; cell.carW=carW; cell.clipped=!!RP.clip && (M.d*RP.clip+M.f)<cell.dy+cell.dh-1; cell.cz=czr; car._cell=cell; car._inst=inst; } }
   NR_GL.end(); }
@@ -1738,6 +1740,7 @@ function glPlayer(w,h,sf,M0){ const inst=glInst(PCAR); GLC.pinst=inst; if (!inst
   P.wheels.spin=g.spin; P.wheels.steer=clamp(S.steer.x*0.45,-0.5,0.5);
   const hs=1/(1+S.airH/450); P.shadowDy=S.airH*k1*mpp; P.shadowA=0.6*hs*hs*(1-0.4*pal.night);
   const nt=Math.max(pal.night,S.tunnelK*0.7); P.lights.run=nt*0.6; P.lights.brake=S.brakeVis; P.lights.indL=0; P.lights.indR=0; P.lights.head=0;
+  P.anim.t=S.time; P.anim.speed=clamp(sf,0,1); P.anim.brake=S.brakeVis; P.anim.throttle=S.nitroOn?1:0; P.anim.hit=S.imp.t<0.6&&!S.imp.car?1-S.imp.t/0.6:0;
   P.blur=clamp((sf-0.05)/0.07,0,1); P.alpha=1; P.clipY=null;
   const cell=NR_GL.render(inst,P); if (!cell) return; cell.gy=M.b*cx+M.d*Yb+M.f; cell.gx=M.a*cx+M.c*Yb+M.e; cell.carW=cw; cell.M=M; cell.cw=cw; cell.ch=ch; cell.cx=cx; cell.Yb=Yb; cell.baseY=baseY; cell.baseY0=baseY0; GLC.pcell=cell; }
 /* screen point (CSS, in the current canvas transform) of a car-space point of the instance last rendered */
@@ -1755,6 +1758,10 @@ function glVirtual(P,xr,yr,czr,upm){ const Zv=Math.max(czr,8*upm), s=Zv/czr; con
 /* a cell copied with the impact squash / yaw of the struck car (the same motion the sprite path used) */
 function impBlitCell(cell){ const I=S.imp, k=I.t, on=k<0.03?k/0.03:1; const sq=(I.kind?0.02:0.03+0.1*I.sev)*Math.cos(k*30)*Math.exp(-k*8)*on, yaw=(I.kind?0.05:0.07)*I.side*Math.sin(k*24)*Math.exp(-k*6), lift=k<0.2?Math.sin(Math.PI*k/0.2)*cell.dh*0.05*I.sev:0;
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.translate(cell.dx+cell.dw/2,cell.dy+cell.dh-lift); ctx.rotate(yaw); ctx.scale(1+sq,1-sq); ctx.drawImage(NR_GL.canvas(),cell.x,cell.y,cell.w,cell.h,-cell.dw/2,-cell.dh,cell.dw,cell.dh); ctx.restore(); }
+/* the loading screen: holds input until every shipped mesh, texture and shader is on the GPU, so nothing is prepared during a race */
+const NRP={busy:!!window.NR_GL, then:null};
+if (window.NR_GL){ const box=document.getElementById('nrLoad'), bar=document.getElementById('nrLoadBar'), block=e=>{ if (NRP.busy) e.stopImmediatePropagation(); };
+  window.addEventListener('keydown',block,true); NR_GL.pack.onP=v=>{ bar.style.width=Math.round(v*100)+'%'; }; NR_GL.preload().then(()=>{ NRP.busy=false; window.removeEventListener('keydown',block,true); box.remove(); if (NRP.then){ const f=NRP.then; NRP.then=null; f(); } }); } else document.getElementById('nrLoad').remove();
 function glReady(){ const st=NR_GL.G; let n=0,t=0; for (const k in st.models){ n++; } t=n+Object.keys(st.pending).length; return {models:n, total:t, pending:Object.keys(st.pending).length}; }
 // ============================================================ update
 function update(dt){
@@ -3185,7 +3192,7 @@ buildStatic(); setTrack(opts.theme); buildCars(); resize(); setPalette(0.18); re
 try{ const f=api('cloud.keys'); if (f) f('race',['neonrush_best','neonrush_bestlap','neonrush_meta_v1','neonrush_opts','neonrush_sound'].concat(THEME_IDS.map(t=>'neonrush_ghost_'+t+'_'+THEMES[t].seed))); }catch(e){}
 try{ const f=api('cloud.load'); if (f) f('race',(d)=>{ if (!d || typeof d!=='object') return; let got=false; for (const k in d){ if (!/^neonrush_/.test(k) || typeof d[k]!=='string') continue; try{ if (localStorage.getItem(k)==null){ localStorage.setItem(k,d[k]); got=true; } }catch(e){} } if (got){ loadMeta(); syncMenu(); } }); }catch(e){}
 try{ const f=api('meta.onQuestDone'); if (f) f((g,q)=>{ if (g!=='race' || !q || meta.quests.done[q.id]) return; meta.quests.done[q.id]=true; meta.coins+=40; S.questPops.push(q.text||q.id); saveMeta(); }); }catch(e){}
-window.__smokeStart=()=>{ startRace(); };
+window.__smokeStart=()=>{ if (NRP.busy){ NRP.then=()=>startRace(); return; } startRace(); };
 document.getElementById('startBest').textContent=fmt(S.best);
 if (hasSave()){ document.getElementById('btnContinue').style.display='inline-block'; document.getElementById('btnStart').classList.add('alt'); }
 setSound(soundOn);

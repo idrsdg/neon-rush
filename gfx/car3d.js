@@ -8,7 +8,7 @@
    No assets, no build step. Car space: x right, y up, z forward, metres; the ground is y = 0, the rear axle is wheels[0].z. */
 (function(root){
 'use strict';
-const PI=Math.PI, TAU=PI*2;
+const PI=Math.PI, TAU=PI*2; let WHEEL_SEG=40;   /* tools/dump_cars.mjs raises this to 96 for the shipped meshes (1,056 triangles per wheel) */
 const clamp=(v,a,b)=>v<a?a:v>b?b:v, lerp=(a,b,t)=>a+(b-a)*t, smooth=(a,b,x)=>{ const t=clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); };
 const frac=x=>x-Math.floor(x); const hyp=(a,b,c)=>Math.sqrt(a*a+b*b+(c===undefined?0:c*c));
 function hex(c){ return [parseInt(c.slice(1,3),16)/255,parseInt(c.slice(3,5),16)/255,parseInt(c.slice(5,7),16)/255]; }
@@ -257,7 +257,7 @@ function rect(x,y,x0,x1,y0,y1){ return x>=x0&&x<=x1&&y>=y0&&y<=y1; }
 // ------------------------------------------------------------------ wheels: tyre with tread and lettering, rim with spokes, brake disc and calliper
 function wheelMesh(w,rimDef,rimOpt){ const m=Mesh(20); const r=w.r, hw=w.w/2;
   const prof=[[-hw,r*0.84],[-hw*0.96,r*0.95],[-hw*0.8,r],[hw*0.8,r],[hw*0.96,r*0.95],[hw,r*0.84]];
-  const R=prof.map(([a,rr])=>{ const c=circle(0,0,a,rr,rr,40); return c; }); for (const ring of R) ring.c=[0,0,ring.p[0][2]];
+  const R=prof.map(([a,rr])=>{ const c=circle(0,0,a,rr,rr,WHEEL_SEG); return c; }); for (const ring of R) ring.c=[0,0,ring.p[0][2]];
   loft(m,R,0,21); const face=m.caps[0];
   // turn onto the x axis: outer face points away from the car
   const ang=(w.single?1:w.side)*PI/2; const dx=w.x, dz=w.z, dy=r; xform(m,ang,dx,dy,dz);
@@ -415,7 +415,7 @@ function exportGeometry(car,items,W,H){ const bodyParts=[]; const wheelParts={};
   const body=merge(bodyParts.filter(p=>!p.twoSided),null), body2=merge(bodyParts.filter(p=>p.twoSided),null); const wheels=car.wheelMeshes.map((wm,k)=>{ const W_=wheelParts[k]; const g=merge(W_.sharp,W_.blur); const w=wm.wheel; return Object.assign(g,{x:w.x,z:w.z,r:w.r,w:w.w,ang:wm.ang,side:w.side,front:w.front,dual:w.dual,inner:!!w.inner}); });
   return {body,body2,wheels,bbox}; }
 
-const API={ bake, build, MODELS:Object.keys(MODELS), version:2, M:{M_PAINT,M_GLASS,M_CHROME,M_RUBBER,M_PLASTIC,M_LENS,M_CARBON,M_MATTE,M_METAL,M_SHADOW,M_LINER,M_HOLE,M_EMIT}, CH:{CH_RUN,CH_TAIL,CH_BRAKE,CH_INDL,CH_INDR,CH_HEAD} };
+const API={ bake, build, setWheelSeg:n=>{ WHEEL_SEG=n; }, MODELS:Object.keys(MODELS), version:2, M:{M_PAINT,M_GLASS,M_CHROME,M_RUBBER,M_PLASTIC,M_LENS,M_CARBON,M_MATTE,M_METAL,M_SHADOW,M_LINER,M_HOLE,M_EMIT}, CH:{CH_RUN,CH_TAIL,CH_BRAKE,CH_INDL,CH_INDR,CH_HEAD} };
 root.NR_CAR3D=API;
 // worker side: {bake:{id, model, opts, W, H}} -> {id, r} with every buffer transferred
 if (typeof document==='undefined' && typeof self!=='undefined' && typeof postMessage==='function'){
