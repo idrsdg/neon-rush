@@ -315,7 +315,7 @@
 <script src="three.min.js"></script>
 <script src="gfx/car3d.js?v=6"></script>
 <script src="gfx/cars-gl.js?v=3"></script>
-<script src="gfx/props-gl.js?v=1"></script>
+<script src="gfx/props-gl.js?v=2"></script>
 <script>
 (() => {
 'use strict';
@@ -839,7 +839,7 @@ function buildStatic(){
 }
 function radial(w,h,c0,c1){ const c=mk(w,h), g=c.getContext('2d'); const gr=g.createRadialGradient(w/2,h/2,0,w/2,h/2,Math.max(w,h)/2); gr.addColorStop(0,c0); gr.addColorStop(1,c1); g.fillStyle=gr; g.fillRect(0,0,w,h); return c; }
 
-function drawDynBill(l1,l2,col){ const c=A.billDyn, g=c.getContext('2d'); g.clearRect(0,0,400,320); g.fillStyle='#2b1180'; g.fillRect(60,220,22,100); g.fillRect(318,220,22,100);
+function drawDynBill(l1,l2,col){ if (window.NR_PROPS && A.billDyn) NR_PROPS.touch(A.billDyn); const c=A.billDyn, g=c.getContext('2d'); g.clearRect(0,0,400,320); g.fillStyle='#2b1180'; g.fillRect(60,220,22,100); g.fillRect(318,220,22,100);
   rr(g,10,10,380,210,18); g.fillStyle='#120838'; g.fill(); g.lineWidth=10; g.strokeStyle=col; g.stroke(); g.lineWidth=4; g.strokeStyle='#fff'; g.stroke();
   g.textAlign='center'; g.textBaseline='middle'; let fs=86; g.font='900 '+fs+'px Impact,"Arial Black",sans-serif'; for (let k=0;k<12 && fs>40 && (g.measureText(l1).width>340 || g.measureText(l2).width>340);k++){ fs-=6; g.font='900 '+fs+'px Impact,"Arial Black",sans-serif'; }
   g.lineWidth=6; g.strokeStyle='#120838'; g.strokeText(l1,200,80); g.strokeText(l2,200,160); g.fillStyle='#ffffff'; g.fillText(l1,200,80); g.fillStyle=col; g.fillText(l2,200,160);

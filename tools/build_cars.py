@@ -1,6 +1,6 @@
 """Step 2 of the car pipeline (Blender 5.3, headless):
 
-  blender --background --python race/tools/build_cars.py -- <dumpDir> <assetsDir> [previewDir] [model ...]
+  blender --background --python race/tools/build_cars.py -- <dumpDir> <assetsDir> [model ...]
 
 Reads the geometry dumped by dump_cars.mjs, adds the mechanical parts, builds a real armature for each vehicle, keyframes one action per
 animation channel, samples those actions into compact tables, makes index-only LODs and writes race/assets/cars.bin + cars.json + atlases.
@@ -11,8 +11,7 @@ from mathutils import Matrix, Quaternion, Vector
 
 argv = sys.argv[sys.argv.index('--') + 1:]
 DUMP, OUT = argv[0], argv[1]
-PREVIEW = argv[2] if len(argv) > 2 and argv[2] != '-' else None
-ONLY = argv[3:]
+ONLY = argv[2:]
 os.makedirs(OUT, exist_ok=True)
 INDEX = json.load(open(os.path.join(DUMP, 'index.json')))
 
@@ -373,7 +372,6 @@ def process(name, e, pack):
     scale = np.abs(P).max(0) * 1.001
     Pq = np.round(P / scale * 32767).astype(np.int16); Nq = np.round(np.clip(N, -1, 1) * 127).astype(np.int8); Uq = np.round(np.clip(U, 0, 1) * 65535).astype(np.uint16); U2q = np.round(np.clip(U2, 0, 1) * 65535).astype(np.uint16)
     ob, rest, tables = bake_rig(name, R)
-    if PREVIEW: preview(name, ob, R, P, N, B, np.concatenate([lod0, T2]))
     ent = {'W': e['W'], 'H': e['H'], 'meta': e['meta'], 'scale': [float(x) for x in scale], 'nv': int(vo),
            'pos': pack.add(Pq), 'nrm': pack.add(Nq), 'uv': pack.add(Uq), 'uv2': pack.add(U2q), 'col': pack.add(C), 'bone': pack.add(B),
            'lods': [pack.add(lod0.astype(np.uint16)), pack.add(lod1.astype(np.uint16)), pack.add(lod2b.astype(np.uint16))], 'two': pack.add(T2.astype(np.uint16)),
@@ -396,18 +394,6 @@ def process(name, e, pack):
         save_webp(os.path.join(OUT, f'car_{name}_{k}.webp'), open(os.path.join(DUMP, src), 'rb').read(), w, h, lossless)
     print(f'[car] {name} bones {len(R.bones)} used {len(used)} tris {ent["tris"]} verts {vo}', flush=True)
     return ent
-
-
-def preview(name, ob, R, P, N, B, I):
-    me = bpy.data.meshes.new(name + '_pv'); tris = I.reshape(-1, 3)
-    me.from_pydata(P.tolist(), [], tris.tolist()); me.update()
-    o = bpy.data.objects.new(name + '_pv', me); bpy.context.scene.collection.objects.link(o)
-    groups = {i: o.vertex_groups.new(name=b['name']) for i, b in enumerate(R.bones)}
-    for i in np.unique(B): groups[int(i)].add(np.nonzero(B == i)[0].tolist(), 1.0, 'REPLACE')
-    md = o.modifiers.new('arm', 'ARMATURE'); md.object = ob
-    me.polygons.foreach_set('use_smooth', [True] * len(me.polygons)); me.update()
-    print('[preview]', name, 'rigged mesh', len(me.polygons), 'faces', len(o.vertex_groups), 'groups', flush=True)
-    bpy.data.objects.remove(o); bpy.data.meshes.remove(me)
 
 
 bpy.ops.wm.read_factory_settings(use_empty=True)

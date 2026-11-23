@@ -108,14 +108,13 @@ class Mesh:
         return self
 
     def slab(self, nu, nv, depth, relief=0.0, seed=0, step=0):
-        """the object's canvas on a real surface: front grid (uv = canvas), displaced in depth, with a back and rim"""
+        """the object's canvas on a real surface: front grid (uv = canvas), displaced in depth; its transparent parts stay holes, so nothing sits behind it"""
         A = self.asp
         def dz(u, v):
             d = relief * noise(u * 3.1, v * 2.3, 0.4, seed) if relief else 0 * u
             if step: d = d + np.floor(v * step) / step * depth * 2.2
             return d
         self.grid(lambda u, v: (u - 0.5, (1 - v) * A, -depth + dz(u, v) * (np.sin(u * math.pi) ** 0.5) * (np.sin(v * math.pi) ** 0.5 if not step else 1)), nu, nv, (255, 255, 255), a=TEX, uv=True)
-        self.grid(lambda u, v: (0.5 - u, (1 - v) * A, depth + 0 * u), max(4, nu // 3), max(4, nv // 3), (26, 22, 44))
         return self
 
     def done(self):
@@ -234,14 +233,11 @@ def flame():
 def banner():
     M = Mesh(.36)
     M.grid(lambda u, v: (u - .5, (1 - v) * .36, .012 * np.sin(u * 12)), 44, 14, (255, 255, 255), a=TEX, uv=True)
-    M.grid(lambda u, v: (.5 - u, (1 - v) * .36, .006 + .012 * np.sin((1 - u) * 12)), 12, 4, (60, 60, 90))
     return M
 
 
 def board(asp, nu=30, nv=20, depth=.012, relief=0, seed=0, step=0, ribs=0):
     M = Mesh(asp); M.slab(nu, nv, depth, relief, seed, step)
-    for k in range(ribs):
-        y = (k + .5) / ribs * asp; M.box((0, y, depth + .006), (.48, .004, .005), (30, 28, 52), 2)
     return M
 
 
