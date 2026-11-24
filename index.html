@@ -1727,7 +1727,7 @@ function glPrepass(w,h,base,sf,ck){ if (!GLC.on) return; NR_GL.begin(); NR_GL.se
       /* 2026-11-24 İdris: a car alongside looked sunk into the road. The hill clip came from the segment under the rear axle, so the bumper and
          boot hanging nearer than that segment's edge were cut flat. Take the clip from the segment under the car's nearest end instead
          (no clip at all once that end is at or behind the camera's first segment). */
-      { const ns=findSeg(car.z+meta.rz*upm-worldW*0.7), k=((ns.i-base.i)+NS)%NS; P.clipY = (k<DRAW && ns.p1.cz>CAMD) ? Math.max(RP.clip, ns.clip) : null; }
+      { const nz=car.z+meta.rz*upm-worldW*0.7, ns=findSeg(((nz%trackLen)+trackLen)%trackLen), k=((ns.i-base.i)+NS)%NS; P.clipY = (k<DRAW && ns.p1.cz>CAMD) ? Math.max(RP.clip, ns.clip) : null; }
       const cell=NR_GL.render(inst,P); if (!cell) continue; cell.gy=M.b*RP.x+M.d*RP.y+M.f; cell.gx=M.a*RP.x+M.c*RP.y+M.e; cell.carW=carW; cell.clipped=P.clipY!=null && (M.d*P.clipY+M.f)<cell.dy+cell.dh-1; cell.cz=czr; car._cell=cell; car._inst=inst; } }
   prPrepass(w,h,base,M); NR_GL.end(); }
 /* our car: placed where the chase camera puts it (bottom centre, the keyed start / finish cameras move it through S.cv), at the size playerDestW() */
