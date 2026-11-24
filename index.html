@@ -1717,8 +1717,12 @@ function glPrepass(w,h,base,sf,ck){ if (!GLC.on) return; NR_GL.begin(); NR_GL.se
       P.wheels.spin=g.spin; P.wheels.steer=clamp(g.y*2.2,-0.45,0.45); for (let i=0;i<10;i++) P.wheels.dy[i]=0; P.shadowDy=0; P.shadowA=0.72*(1-0.45*nt);
       P.lights.run=nt*0.6; P.lights.brake=g.br; P.lights.indL=car.ind<0?blink:0; P.lights.indR=car.ind>0?blink:0; P.lights.head=0;
       P.anim.t=S.time+car.z*0.0007; P.anim.speed=clamp(sfc,0,1); P.anim.brake=g.br; P.anim.throttle=car.nitroT>0?1:clamp(acc/(MAX_SPEED*0.4),0,1); P.anim.hit=S.imp.car===car&&S.imp.t<0.6?1-S.imp.t/0.6:0;
-      P.blur=clamp((sfc-0.05)/0.07,0,1); P.alpha=glFog(n); P.clipY=RP.clip; P.M=M;
-      const cell=NR_GL.render(inst,P); if (!cell) continue; cell.gy=M.b*RP.x+M.d*RP.y+M.f; cell.gx=M.a*RP.x+M.c*RP.y+M.e; cell.carW=carW; cell.clipped=!!RP.clip && (M.d*RP.clip+M.f)<cell.dy+cell.dh-1; cell.cz=czr; car._cell=cell; car._inst=inst; } }
+      P.blur=clamp((sfc-0.05)/0.07,0,1); P.alpha=glFog(n); P.M=M;
+      /* 2026-11-24 İdris: a car alongside looked sunk into the road. The hill clip came from the segment under the rear axle, so the bumper and
+         boot hanging nearer than that segment's edge were cut flat. Take the clip from the segment under the car's nearest end instead
+         (no clip at all once that end is at or behind the camera's first segment). */
+      { const ns=findSeg(car.z+meta.rz*upm-worldW*0.7), k=((ns.i-base.i)+NS)%NS; P.clipY = (k<DRAW && ns.p1.cz>CAMD) ? Math.max(RP.clip, ns.clip) : null; }
+      const cell=NR_GL.render(inst,P); if (!cell) continue; cell.gy=M.b*RP.x+M.d*RP.y+M.f; cell.gx=M.a*RP.x+M.c*RP.y+M.e; cell.carW=carW; cell.clipped=P.clipY!=null && (M.d*P.clipY+M.f)<cell.dy+cell.dh-1; cell.cz=czr; car._cell=cell; car._inst=inst; } }
   prPrepass(w,h,base,M); NR_GL.end(); }
 /* our car: placed where the chase camera puts it (bottom centre, the keyed start / finish cameras move it through S.cv), at the size playerDestW() */
 function glPlayer(w,h,sf,M0){ const inst=glInst(PCAR); GLC.pinst=inst; if (!inst) return; const meta=inst.model.meta;
