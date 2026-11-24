@@ -1,0 +1,4 @@
+# The games are written as JavaScript inside their index.html pages: count that code as JavaScript, and leave the bundled three.js out
+*.html linguist-language=JavaScript
+**/three.min.js linguist-vendored
+three.min.js linguist-vendored
