@@ -1014,13 +1014,19 @@ function finishTrack(theme,rc,tunnelAt){
   let billN=0;
   for (let i=20;i<segments.length;i+=1){
     const s=segments[i]; if (s.tunnel || s.stand) continue;
-    if (i%7===0){ const side = (i%14===0)?-1:1; const v=r();
+    if (i%4===0){ const side = (i%8===0)?-1:1; const v=r();
       if (theme==='desert'){ if (v<0.45) add(i,A.cactus[i%2],side*(1.5+r()*1.4),640,0.4); else if (v<0.75) add(i,A.rock[i%2],side*(1.6+r()*1.6),900,0.6); else if (v<0.85) add(i,A.pylon[i%3],side*(1.45+r()*0.3),240,0.12); else add(i,A.cactus[(i+1)%2],side*(2.4+r()*1.6),760,0.45); }
       else if (theme==='mountain'){ if (v<0.5) add(i,A.pine[i%2],side*(1.6+r()*1.3),760,0.45); else if (v<0.72) add(i,A.rock[(i+1)%2],side*(1.6+r()*1.4),1000,0.65); else if (v<0.85) add(i,A.pine[(i+1)%2],side*(2.4+r()*1.8),900,0.5); else add(i,A.bush,side*(1.5+r()*1.2),600,0.3); }
       else if (theme==='coast'){ if (v<0.45) add(i,A.palm[i%2],side*(1.6+r()*1.2),900,0.45); else if (v<0.65) add(i,A.rock[i%2],side*(1.7+r()*1.5),800,0.55); else if (v<0.85) add(i,A.bush,side*(1.5+r()*1.4),700,0.35); else add(i,A.palm[(i+1)%2],side*(2.2+r()*1.5),1000,0.5); }
       else { if (v<0.5) add(i,A.palm[i%2],side*(1.6+r()*1.2),900,0.45); else if (v<0.7) add(i,A.bush,side*(1.5+r()*1.4),700,0.35); else if (v<0.85) add(i,A.pylon[i%3],side*(1.45+r()*0.3),240,0.12); else add(i,A.palm[(i+1)%2],side*(2.2+r()*1.5),1000,0.5); } }
-    if (i%41===0){ billN++; add(i,(billN%3===0)?A.billDyn:A.bill[(i/41|0)%A.bill.length],(i%82===0?-1:1)*(2.4), 1400, 0.6); }
-    if (i%23===0 && theme!=='mountain' && !(theme==='desert' && i%46!==0)){ add(i,A.lamp,(i%46===0?-1:1)*1.32,330,0.1); s.lamp=true; }
+    // 2026-11-24 İdris: "ortam ve görseller çok basit kalmış": a second, further row of the theme's plants and rocks, so the roadside is never bare
+    if (i%5===2 && theme!=='city'){ const sd=(i%10<5)?-1:1, v=r(), o=sd*(2.7+r()*3.4);
+      if (theme==='desert') add(i, v<0.5?A.cactus[i%2]:A.rock[(i+1)%2], o, v<0.5?700:1000, 0);
+      else if (theme==='mountain') add(i, v<0.7?A.pine[i%2]:A.rock[i%2], o, v<0.7?880:1000, 0);
+      else add(i, v<0.6?A.palm[i%2]:A.bush, o, v<0.6?980:720, 0); }
+    if (theme==='city' && i%6===3){ const sd=(i%12<6)?-1:1; add(i, r()<0.6?A.bush:A.palm[i%2], sd*(1.55+r()*0.6), r()<0.6?640:900, 0.35); }
+    if (i%29===0){ billN++; add(i,(billN%3===0)?A.billDyn:A.bill[(i/29|0)%A.bill.length],(i%58===0?-1:1)*(2.4), 1400, 0.6); }
+    if (i%12===0 && theme!=='mountain' && !(theme==='desert' && i%36!==0)){ add(i,A.lamp,(i%24===0?-1:1)*1.32,330,0.1); s.lamp=true; }
     if (Math.abs(s.curve)>=3 && i%(theme==='mountain'?4:6)===0){ const dir=s.curve>0?1:0; add(i,A.chev[dir],(s.curve>0?-1:1)*1.4,420,0.15); }
     // puddles on flat straights (visible and splashy when the track is wet)
     s.puddle = (s.curve0===0 && Math.abs(s.p2.y-s.p1.y)<0.5 && i%29===0) ? (r()-0.5)*1.2 : null;
@@ -3222,7 +3228,7 @@ buildStatic(); setTrack(opts.theme); buildCars(); resize(); setPalette(0.18); re
 try{ const f=api('cloud.keys'); if (f) f('race',['neonrush_best','neonrush_bestlap','neonrush_meta_v1','neonrush_opts','neonrush_sound'].concat(THEME_IDS.map(t=>'neonrush_ghost_'+t+'_'+THEMES[t].seed))); }catch(e){}
 try{ const f=api('cloud.load'); if (f) f('race',(d)=>{ if (!d || typeof d!=='object') return; let got=false; for (const k in d){ if (!/^neonrush_/.test(k) || typeof d[k]!=='string') continue; try{ if (localStorage.getItem(k)==null){ localStorage.setItem(k,d[k]); got=true; } }catch(e){} } if (got){ loadMeta(); syncMenu(); } }); }catch(e){}
 try{ const f=api('meta.onQuestDone'); if (f) f((g,q)=>{ if (g!=='race' || !q || meta.quests.done[q.id]) return; meta.quests.done[q.id]=true; meta.coins+=40; S.questPops.push(q.text||q.id); saveMeta(); }); }catch(e){}
-window.__smokeStart=()=>{ if (NRP.busy){ NRP.then=()=>startRace(); return; } startRace(); };
+window.__smokeStart=(th)=>{ const go=()=>startRace(th?{mode:'race',theme:th}:undefined); if (NRP.busy){ NRP.then=go; return; } go(); };   /* tests: an optional theme name */
 document.getElementById('startBest').textContent=fmt(S.best);
 if (hasSave()){ document.getElementById('btnContinue').style.display='inline-block'; document.getElementById('btnStart').classList.add('alt'); }
 setSound(soundOn);
